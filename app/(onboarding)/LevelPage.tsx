@@ -14,7 +14,7 @@ export default function LevelPage() {
 
     return (
         <LinearGradient
-            colors={['#E8F4FF', '#FFFFFF']}
+            colors={['#a2c6ff', '#FFFFFF']}
             style={styles.container}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
@@ -47,7 +47,7 @@ export default function LevelPage() {
         </LinearGradient>
     );
 }
-
+ 
 const styles = StyleSheet.create({
     container: {
         flex: 1,

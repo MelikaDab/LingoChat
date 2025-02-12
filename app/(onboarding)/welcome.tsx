@@ -13,7 +13,7 @@ export default function NamePage() {
 
     return (
         <LinearGradient
-            colors={['#E8F4FF', '#FFFFFF']}
+            colors={['#a2c6ff', '#FFFFFF']}
             style={styles.container}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
