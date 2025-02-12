@@ -5,11 +5,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LevelPage() {
     const router = useRouter();
-    const [selectedLevel, setSelectedLevel] = useState(null);
+    const [selectedLevel, setSelectedLevel] = useState("");
 
     const handleNext = () => {
         // Store the selected level in state or pass it to the next screen
-        router.push('/(onboarding)/NextPage');
+        router.push('../(tabs)/index');
     };
 
     return (
