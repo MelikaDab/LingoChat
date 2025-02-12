@@ -4,6 +4,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
 import { LinearGradient } from "expo-linear-gradient";
 
+const radius = 100;
+const textItems = [ "Enchante!",  "Je t'aime", "Tu es tres jolie!", "Bonjour!", "Oui Oui",]; // Text to be displayed in a circle
+const colors = ["#3A5AE7", "#B63AE7", "#3AE78B", "#E73A3D", "#E73ACD"]
 export default function SignUpScreen() {
   const router = useRouter();
 
@@ -22,7 +25,34 @@ export default function SignUpScreen() {
     <View style={styles.container}>
       <Text style={styles.heading}>LingoChat</Text>
       <Text style={styles.info}>Fluent French Starts with a Chat</Text>
-        <Image source={require("../assets/images/sloth.png")} style={styles.image}/>
+
+      <Image source={require("../assets/images/sloth.png")} style={styles.image}/>
+      {/* Circular Text */}
+      {textItems.map((letter, index) => {
+        const angle = (index / textItems.length) * 2 * Math.PI; // Convert to radians
+        const x = radius * Math.cos(angle); // X position
+        const y = radius * Math.sin(angle); // Y position
+        const rotate = (angle * 180) / Math.PI + 90; // Convert radians to degrees and adjust rotation
+
+        return (
+          <Text
+            key={index}
+            style={[
+              styles.frenchText,
+              {
+                color: colors[index % colors.length],
+                transform: [
+                  { translateX: x },
+                  { translateY: y },
+                  { rotate: `${rotate}deg` }, // Rotate text to follow the curve
+                ],
+              },
+            ]}
+          >
+            {letter}
+          </Text>
+        );
+      })}
       <TouchableOpacity style={styles.signupButton} onPress={startOnboarding}>
         <Text style={styles.signupButtonText}>Continue with Google</Text>
       </TouchableOpacity>
@@ -68,6 +98,11 @@ image: {
     width: 200, // Adjust size as needed
     height: 200,
     resizeMode: "contain", // or "cover"
-    margin: 100
+    margin: 100,
+}
+,
+frenchText: {
+  fontSize: 15,
+  position: "absolute"
 }
 })
