@@ -9,7 +9,7 @@ export default function LevelPage() {
 
     const handleNext = () => {
         // Store the selected level in state or pass it to the next screen
-        router.push('../(tabs)/index');
+        router.push('../(tabs)/home');
     };
 
     return (
