@@ -9,8 +9,7 @@ import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 
 // 2) Import Firebase Auth
-import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-import { auth } from "../firebase"; // import your auth object from firebase.js
+import auth from "@react-native-firebase/auth";
 
 // Required for iOS behavior with expo-auth-session
 WebBrowser.maybeCompleteAuthSession();
@@ -25,36 +24,25 @@ export default function SignUpScreen() {
   // 3) Setup Google Auth request 
   const [request, response, promptAsync] = Google.useAuthRequest({
     // You MUST replace these client IDs with your own from the Google Cloud console
-    expoClientId: "YOUR_EXPO_CLIENT_ID.apps.googleusercontent.com",
+    clientId: "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com",
     iosClientId: "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com",
     androidClientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com",
     // If you have a webClientId, add it here as well if needed
   });
 
-  // 4) Listen for the response
   useEffect(() => {
     if (response?.type === "success") {
-      // Retrieve authentication object { accessToken, idToken, ... }
-      const { authentication } = response;
-      if (authentication) {
-        const { idToken, accessToken } = authentication;
+      const { id_token } = response.params;
+      const credential = auth.GoogleAuthProvider.credential(id_token);
 
-        // Create a new credential with the tokens
-        const credential = GoogleAuthProvider.credential(idToken, accessToken);
-
-        // Use the credential to sign in with Firebase
-        signInWithCredential(auth, credential)
-          .then(async (userCredential) => {
-            // userCredential is now your Firebase user object
-            // For example, store a flag that user has signed up:
-            await AsyncStorage.setItem("hasSignedUp", "true");
-            // Then navigate to your onboarding or home screen
-            router.replace("/(onboarding)/welcome");
-          })
-          .catch((error) => {
-            console.error("Firebase Sign-In Error:", error);
-          });
-      }
+      // Use the credential to sign in with Firebase
+      auth()
+        .signInWithCredential(credential)
+        .then(async (userCredential) => {
+          await AsyncStorage.setItem("hasSignedUp", "true");
+          router.replace("/(onboarding)/welcome");
+        })
+        .catch((error) => console.error("Firebase Sign-In Error:", error));
     }
   }, [response]);
 
