@@ -8,7 +8,7 @@ const HomeScreen = () => {
       title: 'la famille',
       words: 20,
       progress: 74,
-      image: require('C:/Users/18183/LingoChat/assets/images/family.png'),
+      image: require('../../assets/images/family.png'),
     },
   ];
 
@@ -20,7 +20,7 @@ const HomeScreen = () => {
           <Text style={styles.gems}>💎 234</Text>
           <Text style={styles.streak}>🔥 12</Text>
         </View>
-        
+
         {/* Level Section */}
         <View style={styles.levelContainer}>
           <Text style={styles.levelTitle}>Beginner</Text>
@@ -28,7 +28,7 @@ const HomeScreen = () => {
             <Text style={styles.changeLevel}>Change Level</Text>
           </TouchableOpacity>
         </View>
-        
+
         {/* Flashcard Deck */}
         <View style={styles.flashcardContainer}>
           <Text style={styles.deckTitle}>Flash Card Deck</Text>
@@ -38,7 +38,7 @@ const HomeScreen = () => {
             <Text style={styles.studyButtonText}>Continue Studying</Text>
           </TouchableOpacity>
         </View>
-        
+
         {/* Recommended Section */}
         <Text style={styles.recommendedTitle}>Recommended</Text>
         <FlatList
