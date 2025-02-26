@@ -96,7 +96,7 @@ export default function SignUpScreen() {
         {/* Google Sign-In Button */}
         <TouchableOpacity
           style={styles.signupButton}
-          onPress={handleGoogleSignIn}
+          onPress={() => router.replace("/(onboarding)/welcome")}
           disabled={!request} // Disable if request is not yet loaded
         >
           <Text style={styles.signupButtonText}>Continue with Google</Text>
