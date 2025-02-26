@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+
 export default function NamePage() {
     const router = useRouter();
     const [name, setName] = useState('');
