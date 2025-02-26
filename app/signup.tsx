@@ -9,8 +9,9 @@ import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 
 // 2) Import Firebase Auth
-import auth from "@react-native-firebase/auth";
-
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithCredential, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "../firebase"; // Ensure this is correctly set up
 // Required for iOS behavior with expo-auth-session
 WebBrowser.maybeCompleteAuthSession();
 
@@ -24,8 +25,8 @@ export default function SignUpScreen() {
   // 3) Setup Google Auth request 
   const [request, response, promptAsync] = Google.useAuthRequest({
     // You MUST replace these client IDs with your own from the Google Cloud console
-    clientId: "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com",
-    iosClientId: "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com",
+    clientId: "725333115110-hsisb5lpjnt3umdmrk025f9as71174kg.apps.googleusercontent.com",
+    iosClientId: "725333115110-oc8bl4eqnifkamkfshq4mk7l4t39gaue.apps.googleusercontent.com",
     androidClientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com",
     // If you have a webClientId, add it here as well if needed
   });
@@ -33,11 +34,9 @@ export default function SignUpScreen() {
   useEffect(() => {
     if (response?.type === "success") {
       const { id_token } = response.params;
-      const credential = auth.GoogleAuthProvider.credential(id_token);
-
-      // Use the credential to sign in with Firebase
-      auth()
-        .signInWithCredential(credential)
+      const credential = GoogleAuthProvider.credential(id_token);
+      // Sign in with Firebase using the credential
+      signInWithCredential(auth, credential)
         .then(async (userCredential) => {
           await AsyncStorage.setItem("hasSignedUp", "true");
           router.replace("/(onboarding)/welcome");
@@ -49,7 +48,11 @@ export default function SignUpScreen() {
   // 5) The function to start sign-in flow
   const handleGoogleSignIn = async () => {
     // This will open the Google sign-in UI
-    await promptAsync();
+    console.log("Starting Google Sign-In...");
+    const result = await promptAsync();
+    console.log("Google Sign-In Result:", result);
+
+
   };
 
   return (
@@ -96,7 +99,9 @@ export default function SignUpScreen() {
         {/* Google Sign-In Button */}
         <TouchableOpacity
           style={styles.signupButton}
-          onPress={() => router.replace("/(onboarding)/welcome")}
+          onPress=
+          // {() => router.replace("/(onboarding)/welcome")}
+          {handleGoogleSignIn}
           disabled={!request} // Disable if request is not yet loaded
         >
           <Text style={styles.signupButtonText}>Continue with Google</Text>
@@ -105,6 +110,7 @@ export default function SignUpScreen() {
     </LinearGradient>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
