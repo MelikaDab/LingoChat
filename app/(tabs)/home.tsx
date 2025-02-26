@@ -1,4 +1,6 @@
-import React from 'react';
+import FlashCardDeck from '@/components/FlashCardDeck';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
 
 const HomeScreen = () => {
@@ -11,57 +13,72 @@ const HomeScreen = () => {
       image: require('../../assets/images/family.png'),
     },
   ];
+const [modalVisible, setModalVisible] = useState(false);
+const sampleCards = [
+    { question: "Rouge", answer: "Red" },
+    { question: "Bleu", answer: "Blue" },
+];
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView>
-        {/* Top Bar */}
-        <View style={styles.topBar}>
-          <Text style={styles.gems}>💎 234</Text>
-          <Text style={styles.streak}>🔥 12</Text>
+return (
+     <LinearGradient
+      colors={["#a2c6ff", "#FFFFFF"]}
+      style={styles.container}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+    >
+    <FlatList
+      data={recommendedFlashcards}
+      keyExtractor={(item) => item.id}
+      ListHeaderComponent={
+        <>
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <Text style={styles.gems}>💎 1230</Text>
+            <Text style={styles.streak}>🔥 45</Text>
+          </View>
+
+          {/* Level Section */}
+          <View style={styles.levelContainer}>
+            <Text style={styles.levelTitle}>Beginner</Text>
+            <TouchableOpacity>
+              <Text style={styles.changeLevel}>Change Level</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Flashcard Deck */}
+          <View style={styles.flashcardContainer}>
+            <Text style={styles.deckTitle}>Flash Card Deck</Text>
+            <Text style={styles.deckSubtitle}>les couleurs</Text>
+            <Text style={styles.deckDescription}>Finish reviewing your cards!</Text>
+            <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.studyButton}>
+              <Text style={styles.studyButtonText}>Continue Studying</Text>
+            </TouchableOpacity>
+          </View>
+          <FlashCardDeck visible={modalVisible} onClose={() => setModalVisible(false)} cards={sampleCards} />
+
+          {/* Recommended Section Title */}
+          <Text style={styles.recommendedTitle}>Recommended</Text>
+        </>
+      }
+      renderItem={({ item }) => (
+        <View style={styles.flashcardItem}>
+          <Image source={item.image} style={styles.flashcardImage} />
+          <View>
+            <Text style={styles.flashcardTitle}>{item.title}</Text>
+            <Text style={styles.flashcardWords}>{item.words} vocabulary words</Text>
+          </View>
         </View>
+      )}
+      contentContainerStyle={{ paddingBottom: 100 }} // Add space at bottom
+    />
+  </LinearGradient>
+);
 
-        {/* Level Section */}
-        <View style={styles.levelContainer}>
-          <Text style={styles.levelTitle}>Beginner</Text>
-          <TouchableOpacity>
-            <Text style={styles.changeLevel}>Change Level</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Flashcard Deck */}
-        <View style={styles.flashcardContainer}>
-          <Text style={styles.deckTitle}>Flash Card Deck</Text>
-          <Text style={styles.deckSubtitle}>les couleurs</Text>
-          <Text style={styles.deckDescription}>Finish reviewing your cards!</Text>
-          <TouchableOpacity style={styles.studyButton}>
-            <Text style={styles.studyButtonText}>Continue Studying</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Recommended Section */}
-        <Text style={styles.recommendedTitle}>Recommended</Text>
-        <FlatList
-          data={recommendedFlashcards}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.flashcardItem}>
-              <Image source={item.image} style={styles.flashcardImage} />
-              <View>
-                <Text style={styles.flashcardTitle}>{item.title}</Text>
-                <Text style={styles.flashcardWords}>{item.words} vocabulary words</Text>
-              </View>
-            </View>
-          )}
-        />
-      </ScrollView>
-    </SafeAreaView>
-  );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFF' },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', padding: 20 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, marginTop: 50 },
   gems: { fontSize: 16, fontWeight: 'bold', color: '#3B82F6' },
   streak: { fontSize: 16, fontWeight: 'bold', color: '#F87171' },
   levelContainer: { flexDirection: 'row', justifyContent: 'space-between', padding: 20 },

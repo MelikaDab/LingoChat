@@ -26,7 +26,7 @@ export default function NamePage() {
 
                 <TextInput
                     style={styles.input}
-                    placeholder="Your name"
+                    // placeholder="Your name"
                     placeholderTextColor="#999"
                     value={name}
                     onChangeText={setName}

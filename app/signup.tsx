@@ -9,8 +9,7 @@ import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 
 // 2) Import Firebase Auth
-import { initializeApp } from "firebase/app";
-import { getAuth, signInWithCredential, GoogleAuthProvider } from "firebase/auth";
+import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase"; // Ensure this is correctly set up
 // Required for iOS behavior with expo-auth-session
 WebBrowser.maybeCompleteAuthSession();
@@ -69,8 +68,7 @@ export default function SignUpScreen() {
           source={require("../assets/images/sloth.png")}
           style={styles.image}
         />
-        {/* Circular Text */}
-        {textItems.map((letter, index) => {
+        {/* {textItems.map((letter, index) => {
           const angle = (index / textItems.length) * 2 * Math.PI; // Convert to radians
           const x = radius * Math.cos(angle); // X position
           const y = radius * Math.sin(angle); // Y position
@@ -94,7 +92,7 @@ export default function SignUpScreen() {
               {letter}
             </Text>
           );
-        })}
+        })} */}
 
         {/* Google Sign-In Button */}
         <TouchableOpacity
