@@ -42,7 +42,7 @@ export default function ProfileTab() {
                         <Text style={styles.statLabel}>Day Streak</Text>
                     </View>
                     <View style={styles.statItem}>
-                        <Text style={styles.statValue}>📚 B1</Text>
+                        <Text style={styles.statValue}>📚 A1</Text>
                         <Text style={styles.statLabel}>Level</Text>
                     </View>
                 </View>
