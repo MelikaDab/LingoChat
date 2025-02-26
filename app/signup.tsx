@@ -4,11 +4,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 
-// 1) Import from expo-auth-session
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 
-// 2) Import Firebase Auth
 import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase"; // Ensure this is correctly set up
 // Required for iOS behavior with expo-auth-session
