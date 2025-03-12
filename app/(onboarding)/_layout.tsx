@@ -1,10 +1,17 @@
-import { Slot } from "expo-router";
-import { View } from "react-native";
+import { Stack } from 'expo-router';
+import React from 'react';
 
 export default function OnboardingLayout() {
   return (
-    <View style={{ flex: 1 }}>
-      <Slot /> {/* Renders the current onboarding step */}
-    </View>
+    <Stack
+      screenOptions={{
+        headerShown: false, // This completely removes the header
+      }}
+    >
+      {/* Your onboarding screens */}
+      <Stack.Screen name="welcome" />
+      <Stack.Screen name="LevelPage" />
+      {/* Any other onboarding screens */}
+    </Stack>
   );
 }

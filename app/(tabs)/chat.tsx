@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, Keyboard
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 // Define message type
 interface Message {
@@ -13,6 +14,7 @@ interface Message {
 
 export default function ChatScreen() {
     const insets = useSafeAreaInsets();
+    const tabBarHeight = useBottomTabBarHeight();
     const [message, setMessage] = useState('');
     const [isRecording, setIsRecording] = useState(false);
     const [isKeyboardVisible, setKeyboardVisible] = useState(false);
@@ -96,7 +98,7 @@ export default function ChatScreen() {
                     style={styles.messageList}
                     contentContainerStyle={[
                         styles.messageListContent,
-                        { paddingBottom: 80 } // Add extra padding at bottom for input area
+                        { paddingBottom: tabBarHeight + 16 } // Use tabBarHeight for consistent padding
                     ]}
                     inverted={false}
                 />
@@ -104,13 +106,11 @@ export default function ChatScreen() {
                 {/* Input Area - Fixed Position */}
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 120}
-                    style={styles.inputContainer}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? tabBarHeight : 0}
+                    style={[styles.inputContainer, { bottom: tabBarHeight }]}
                 >
                     <View style={[
-                        styles.inputWrapper,
-                        // Only add bottom margin when keyboard is not visible
-                        !isKeyboardVisible && { marginBottom: insets.bottom + 70 }
+                        styles.inputWrapper
                     ]}>
                         <TextInput
                             style={styles.input}
@@ -214,6 +214,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 24,
         paddingVertical: 5,
+        paddingBottom: 25,
         paddingHorizontal: 10,
     },
     input: {
