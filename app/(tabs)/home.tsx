@@ -12,36 +12,32 @@ interface FlashCardDeckData {
   cards: { question: string; answer: string }[];
 }
 
-// Example Flashcard Decks
-const flashcardDecks: FlashCardDeckData[] = [
 
+const recommendedFlashcards: FlashCardDeckData[] = [
+  {
+    id: "1",
+    title: "les couleurs",
+    words: 2,
+    // image: require("../../assets/images/colors.png"),
+    cards: [
+      { question: "Red", answer: "Rouge" },
+      { question: "Blue", answer: "Bleu" },
+    ],
+  }, 
   {
     id: "2",
-    title: "Family",
+    title: "la famille",
     words: 2,
     image: require("../../assets/images/family.png"),
     cards: [
       { question: "Father", answer: "Père" },
       { question: "Mother", answer: "Mère" },
     ],
-  },
-];
-
-const recommendedFlashcards = [
-  {
-    id: "1",
-    title: "les couleurs",
-    words: 10,
-    // image: require("../../assets/images/colors.png"),
-    cards: [
-      { question: "Red", answer: "Rouge" },
-      { question: "Blue", answer: "Bleu" },
-    ],
-  },    
+  },   
   {
     id: "3",
     title: "Animals",
-    words: 15,
+    words: 2,
     // image: require("../assets/animals.png"),
     cards: [
       { question: "Dog", answer: "Chien" },
@@ -51,7 +47,7 @@ const recommendedFlashcards = [
   {
     id: "4",
     title: "Food",
-    words: 18,
+    words: 2,
     // image: require("../assets/food.png"),
     cards: [
       { question: "Apple", answer: "Pomme" },
@@ -94,22 +90,18 @@ const Home = () => {
               <Text style={styles.deckTitle}>Flash Card Deck</Text>
               <Text style={styles.deckSubtitle}>les couleurs</Text>
               <Text style={styles.deckDescription}>Finish reviewing your cards!</Text>
-              <TouchableOpacity onPress={() => setSelectedDeck(flashcardDecks[0])} style={styles.studyButton}>
+              <TouchableOpacity onPress={() => setSelectedDeck(recommendedFlashcards[0])} style={styles.studyButton}>
                 <Text style={styles.studyButtonText}>Continue Studying</Text>
               </TouchableOpacity>
             </View>
 
-            {/* FlashCardList (Main Decks Section) */}
-            <FlashCardDeckList flashcardDecks={flashcardDecks} setSelectedDeck={setSelectedDeck} />
-
             {/* Recommended Section Title */}
             <Text style={styles.recommendedTitle}>Recommended</Text>
+            <FlashCardDeckList flashcardDecks={recommendedFlashcards} setSelectedDeck={setSelectedDeck} />
           </>
         }
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => setSelectedDeck(item)} style={styles.flashcardItem}>
-            {/* {item.image && <Image source={item.image} style={styles.flashcardImage} />} */}
-            {/* <FlashCardDeckList flashcardDecks={recommendedFlashcards} setSelectedDeck={setSelectedDeck} /> */}
           </TouchableOpacity>
         )}
         contentContainerStyle={{ paddingBottom: 100 }} // Add space at bottom
@@ -190,8 +182,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
   },
   flashcardImage: {
     width: 50,

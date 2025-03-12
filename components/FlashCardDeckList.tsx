@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React from "react";
 import { View, Text, TouchableOpacity, Image, FlatList, StyleSheet } from "react-native";
-import FlashCardDeck from "./FlashCardDeck"; // Import your FlashCardDeck component
 
 interface FlashCardDeckData {
   id: string;
