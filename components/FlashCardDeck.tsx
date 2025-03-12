@@ -16,13 +16,8 @@ interface FlashCardDeckProps {
 }
 
 const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }) => {
-  const [modalOpen, setModalOpen] = useState(visible)
   const [flipped, setFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
-
-  const handleModalOpen = () => {
-    setModalOpen(false)
-  }
 
   // Flip animation handler
   const flipCard = () => {
@@ -51,7 +46,7 @@ const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }
 
 
   return (
-    <Modal visible={modalOpen} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <Swiper
           cards={cards}
@@ -80,7 +75,7 @@ const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }
             <View style={styles.card}>
               <Text style={styles.cardText}>{cards[cardIndex].answer}</Text>
             </View>)}
-          onSwipedAll={() => handleModalOpen()}
+          onSwipedAll={() => onClose()}
           backgroundColor="transparent"
         />
       </View>
