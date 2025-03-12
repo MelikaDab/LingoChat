@@ -1,145 +1,7 @@
-// import { Ionicons } from '@expo/vector-icons';
-// import React, { useState } from 'react';
-// import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-// import AntDesign from '@expo/vector-icons/AntDesign';
-
-// interface FlashCard {
-//   question: string;
-//   answer: string;
-// }
-
-// interface FlashCardDeckProps {
-//   visible: boolean;
-//   onClose: () => void;
-//   cards: FlashCard[];
-// }
-
-// const FlashCardDeck = ({ visible, onClose, cards }: FlashCardDeckProps) => {
-//     const [currentIndex, setCurrentIndex] = useState(0);
-//     const [flipped, setFlipped] = useState(false);
-
-//     const handleNext = () => {
-//         if (currentIndex < cards.length - 1) {
-//             setCurrentIndex(currentIndex + 1);
-//             setFlipped(false);
-//         }
-//     };
-
-//     const handlePrev = () => {
-//         if (currentIndex > 0) {
-//             setCurrentIndex(currentIndex - 1);
-//             setFlipped(false);
-//         }
-//     };
-
-//     return (
-//         <Modal visible={visible} animationType="slide" transparent>
-//             <View style={styles.modalContainer}>
-//                 <View style={styles.cardContainer}>
-//                     <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-//                         <Ionicons name="close" size={24} color="#888" />
-//                     </TouchableOpacity>
-//                     <View style={styles.cardWrapper}>
-//                         <TouchableOpacity style={[styles.navButton, styles.leftButton]} onPress={handlePrev} disabled={currentIndex === 0}>
-//                             {/* <Text style={[styles.navButton, currentIndex === 0 && styles.disabled]}>◀</Text> */}
-//                             <AntDesign name="left" size={24} color="gray" />
-
-//                         </TouchableOpacity>
-//                         <Text style={styles.cardText}>
-//                         {flipped ? cards[currentIndex].answer : cards[currentIndex].question}
-//                         </Text>
-//                         <TouchableOpacity style={[styles.navButton, styles.rightButton]} onPress={handleNext} disabled={currentIndex === cards.length - 1}>
-//                             {/* <Text style={[styles.navButton, currentIndex === cards.length - 1 && styles.disabled]}>▶</Text> */}
-//                             <AntDesign name="right" size={24} color="gray" />
-
-//                         </TouchableOpacity>
-//                     </View>
-                    
-//                     <TouchableOpacity style={styles.flipButton} onPress={() => setFlipped(!flipped)}>
-//                         <Text style={styles.buttonText}>tap to flip!</Text>
-//                     </TouchableOpacity>
-//                 </View>
-//             </View>
-//         </Modal>
-//     );
-// };
-
-// const styles = StyleSheet.create({
-//     modalContainer: {
-//         flex: 1,
-//         backgroundColor: 'rgba(0, 0, 0, 0.5)',
-//         justifyContent: 'center',
-//         alignItems: 'center',
-//     },
-//     cardContainer: {
-//         width: 300,
-//         padding: 20,
-//         backgroundColor: 'white',
-//         borderRadius: 15,
-//         alignItems: 'center',
-//     },
-//     cardWrapper: {
-//         flexDirection: "row", 
-//         justifyContent: "center",
-//         position: "relative",
-//         alignItems: "center",
-//         width: "100%",
-//         marginVertical: 20,
-//     },
-//     leftButton: {
-//         right: 10
-//     },
-//     rightButton: {
-//         left: 10,
-//         right: 0
-//     },
-//     navButton: {
-//         position: "absolute",
-//         top: "50%",
-//         transform: [{ translateY: -15 }], // Centers vertically
-//         padding: 10,
-//     },    
-
-//     cardText: {
-//         fontSize: 20,
-//         marginBottom: 20,
-//         textAlign: 'center',
-//     },
-//     flipButton: {
-//         backgroundColor: '#3B82F0',
-//         paddingVertical: 10,
-//         paddingHorizontal: 20,
-//         borderRadius: 10,
-//         marginBottom: 15,
-//     },
-//     buttonText: {
-//         color: 'white',
-//         fontSize: 16,
-//     },
-//     navButtons: {
-//         flexDirection: 'row',
-//         justifyContent: 'space-between',
-//         width: '80%',
-//         marginBottom: 20,
-//     },
-//     navButton: {
-//         fontSize: 24,
-//         color: 'black',
-//     },
-//     disabled: {
-//         color: 'gray',
-//     },
-//     closeButton: {
-//         top: 10,
-//         right: 10,
-//         padding: 10,
-//         position: 'absolute'
-//     },
-// });
-
+import Swiper from "react-native-deck-swiper";
 // export default FlashCardDeck;
-import React, { useState } from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useRef, useState } from "react";
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 interface FlashCard {
@@ -154,58 +16,73 @@ interface FlashCardDeckProps {
 }
 
 const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [modalOpen, setModalOpen] = useState(visible)
   const [flipped, setFlipped] = useState(false);
+  const flipAnim = useRef(new Animated.Value(0)).current;
 
-  const handleNext = () => {
-    if (currentIndex < cards.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setFlipped(false);
-    }
+  const handleModalOpen = () => {
+    setModalOpen(false)
+  }
+
+  // Flip animation handler
+  const flipCard = () => {
+    Animated.timing(flipAnim, {
+      toValue: flipped ? 0 : 1, // Toggle between 0 and 1
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => setFlipped(!flipped));
   };
 
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setFlipped(false);
-    }
+  // Reset flip state when swiping
+  const resetFlip = () => {
+    setFlipped(false);
+    Animated.timing(flipAnim, {
+      toValue: 0,
+      duration: 0,
+      useNativeDriver: true,
+    }).start();
   };
+
+  // Rotate animation - only the card flips, NOT the text
+  const rotateY = flipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"], // Smooth flip
+  });
+
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={modalOpen} transparent animationType="slide">
       <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
-          {/* Close Button */}
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={28} color="#888" />
-          </TouchableOpacity>
+        <Swiper
+          cards={cards}
+          renderCard={(card) => (
+            
+            <Animated.View style={[styles.card, { transform: [{ rotateY }] }]}>
+              <TouchableOpacity onPress={flipCard} activeOpacity={1} style={styles.modalContainer}>
+                {/* Front Side */}
+                {!flipped && (
+                  <View style={styles.card}>
+                    <Text style={styles.cardText}>{card.question}</Text>
+                  </View>
+                )}
 
-          <Text style={styles.deckTitle}>Flashcards</Text>
-
-          {/* Card Row - Keeps buttons fixed on edges */}
-          <View style={styles.cardRow}>
-            {/* Left Button */}
-            <TouchableOpacity onPress={handlePrev} disabled={currentIndex === 0} style={styles.navButton}>
-              <Ionicons name="chevron-back" size={30} color={currentIndex === 0 ? "#ccc" : "#007bff"} />
+                {/* Back Side */}
+                {flipped && (
+                  <View style={[styles.card, styles.card]}>
+                    <Text style={styles.cardText}>{card.answer}</Text>
+                  </View>
+                )}
             </TouchableOpacity>
-
-            {/* Flashcard */}
+            </Animated.View>              
+          )}
+          onSwiped={resetFlip}
+          onTapCard={(cardIndex) => (
             <View style={styles.card}>
-              <Text style={styles.cardText}>
-                {flipped ? cards[currentIndex].answer : cards[currentIndex].question}
-              </Text>
-            </View>
-
-            {/* Right Button */}
-            <TouchableOpacity onPress={handleNext} disabled={currentIndex === cards.length - 1} style={styles.navButton}>
-              <Ionicons name="chevron-forward" size={30} color={currentIndex === cards.length - 1 ? "#ccc" : "#007bff"} />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.flipButton} onPress={() => setFlipped(!flipped)}>
-            <Text style={styles.buttonText}>reveal!</Text>
-          </TouchableOpacity>
-        </View>
+              <Text style={styles.cardText}>{cards[cardIndex].answer}</Text>
+            </View>)}
+          onSwipedAll={() => handleModalOpen()}
+          backgroundColor="transparent"
+        />
       </View>
     </Modal>
   );
