@@ -1,73 +1,90 @@
 import Swiper from "react-native-deck-swiper";
 import React, { useRef, useState, useEffect } from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 interface FlashCard { question: string; answer: string; }
 interface FlashCardDeckProps { visible: boolean; onClose: () => void; cards: FlashCard[]; }
 
 const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }) => {
-  const [flippedStates, setFlippedStates] = useState<boolean[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const swiperRef = useRef<Swiper<FlashCard>>(null);
   const flipAnim = useRef(new Animated.Value(0)).current;
-
-  // Initialize flipped states
-  useEffect(() => {
-    setFlippedStates(new Array(cards.length).fill(false));
-  }, [cards]);
+  const swiperRef = useRef<Swiper<FlashCard>>(null);
+  const [isFlipped, setIsFlipped] = useState(false); // Track flip state
 
   // Flip animation handler
   const flipCard = () => {
-    const newFlipped = !flippedStates[currentCardIndex];
     Animated.timing(flipAnim, {
-      toValue: newFlipped ? 1 : 0,
+      toValue: isFlipped ? 0 : 1, // Use state instead of _value
       duration: 300,
       useNativeDriver: true,
-    }).start(() => {
-      const newFlippedStates = [...flippedStates];
-      newFlippedStates[currentCardIndex] = newFlipped;
-      setFlippedStates(newFlippedStates);
-    });
+    }).start(() => setIsFlipped(!isFlipped)); // Update state after animation
   };
 
   // Reset flip state when swiping
   const onSwiped = (index: number) => {
     setCurrentCardIndex(index + 1);
-    Animated.timing(flipAnim, {
-      toValue: 0,
-      duration: 0,
-      useNativeDriver: true,
-    }).start();
+    flipAnim.setValue(0);
+    setIsFlipped(false); // Reset flip state
   };
 
-  // Rotate animations
-  const rotateY = flipAnim.interpolate({
+  // Front interpolation (0deg -> 180deg)
+  const rotateYFront = flipAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "180deg"],
   });
 
-  const textRotateY = flipAnim.interpolate({
+  // Back interpolation (180deg -> 360deg)
+  const rotateYBack = flipAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["0deg", "180deg"],
+    outputRange: ["180deg", "360deg"],
+  });
+
+  // Opacity interpolation (front fades out, back fades in)
+  const opacityFront = flipAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 0, 0],
+  });
+
+  const opacityBack = flipAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, 0, 1],
   });
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" >
       <View style={styles.overlay}>
         <Swiper
-          key={flippedStates[currentCardIndex] ? "flipped" : "not-flipped"} // Force re-render
+          key={currentCardIndex} // Force re-render on card change
           ref={swiperRef}
           cards={cards}
           cardIndex={currentCardIndex}
           renderCard={(card) => (
-            <Animated.View style={[styles.card, { transform: [{ rotateY }] }]}>
-              <TouchableOpacity onPress={flipCard} activeOpacity={1}>
-                <Animated.Text style={[styles.cardText, { transform: [{ rotateY: textRotateY }] }]}>
-                  {flippedStates[currentCardIndex] ? card.answer : card.question}
-                </Animated.Text>
-              </TouchableOpacity>
-            </Animated.View>
+            <TouchableOpacity onPress={flipCard} activeOpacity={1}>
+              <View style={styles.card}>
+                {/* Front face */}
+                <Animated.View style={[
+                  styles.face,
+                  { 
+                    opacity: opacityFront,
+                    transform: [{ rotateY: rotateYFront }],
+                  }
+                ]}>
+                  <Text style={styles.cardText}>{card.question}</Text>
+                </Animated.View>
+
+                {/* Back face */}
+                <Animated.View style={[
+                  styles.face,
+                  { 
+                    opacity: opacityBack,
+                    transform: [{ rotateY: rotateYBack }],
+                  }
+                ]}>
+                  <Text style={styles.cardText}>{card.answer}</Text>
+                </Animated.View>
+              </View>
+            </TouchableOpacity>
+            
           )}
           onSwiped={onSwiped}
           onSwipedAll={onClose}
@@ -80,24 +97,56 @@ const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)", // Darker overlay
     justifyContent: "center",
     alignItems: "center",
   },
   card: {
-    flex: 1, // Ensures it takes up the center space
-    height: 150,
+    width: "80%", // Responsive width
+    height: 300, // Fixed height for better proportions
     backgroundColor: "#f5f5f5",
+    borderRadius: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  face: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 10,
+    backfaceVisibility: "hidden",
+    padding: 20, // Add padding for text
   },
   cardText: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "600",
     textAlign: "center",
+    color: "#333",
   },
 });
 
-export default FlashCardDeck;
+// const styles = StyleSheet.create({
+//   overlay: {
+//     flex: 1,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   card: {
+//     flex: 1, // Ensures it takes up the center space
+//     height: 150,
+//     backgroundColor: "#f5f5f5",
+//     justifyContent: "center",
+//     alignItems: "center",
+//     borderRadius: 10,
+//   },
+//   cardText: {
+//     fontSize: 18,
+//     fontWeight: "600",
+//     textAlign: "center",
+//   },
+// });
 
+export default FlashCardDeck;
