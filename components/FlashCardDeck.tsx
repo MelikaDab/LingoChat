@@ -1,36 +1,39 @@
 import Swiper from "react-native-deck-swiper";
-// export default FlashCardDeck;
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-interface FlashCard {
-  question: string;
-  answer: string;
-}
-
-interface FlashCardDeckProps {
-  visible: boolean;
-  onClose: () => void;
-  cards: FlashCard[];
-}
+interface FlashCard { question: string; answer: string; }
+interface FlashCardDeckProps { visible: boolean; onClose: () => void; cards: FlashCard[]; }
 
 const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }) => {
-  const [flipped, setFlipped] = useState(false);
+  const [flippedStates, setFlippedStates] = useState<boolean[]>([]);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const swiperRef = useRef<Swiper<FlashCard>>(null);
   const flipAnim = useRef(new Animated.Value(0)).current;
+
+  // Initialize flipped states
+  useEffect(() => {
+    setFlippedStates(new Array(cards.length).fill(false));
+  }, [cards]);
 
   // Flip animation handler
   const flipCard = () => {
+    const newFlipped = !flippedStates[currentCardIndex];
     Animated.timing(flipAnim, {
-      toValue: flipped ? 0 : 1, // Toggle between 0 and 1
+      toValue: newFlipped ? 1 : 0,
       duration: 300,
       useNativeDriver: true,
-    }).start(() => setFlipped(!flipped));
+    }).start(() => {
+      const newFlippedStates = [...flippedStates];
+      newFlippedStates[currentCardIndex] = newFlipped;
+      setFlippedStates(newFlippedStates);
+    });
   };
 
   // Reset flip state when swiping
-  const resetFlip = () => {
-    setFlipped(false);
+  const onSwiped = (index: number) => {
+    setCurrentCardIndex(index + 1);
     Animated.timing(flipAnim, {
       toValue: 0,
       duration: 0,
@@ -38,86 +41,47 @@ const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }
     }).start();
   };
 
-  // Rotate animation - only the card flips, NOT the text
+  // Rotate animations
   const rotateY = flipAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["0deg", "180deg"], // Smooth flip
+    outputRange: ["0deg", "180deg"],
   });
 
+  const textRotateY = flipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
 
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <Swiper
+          key={flippedStates[currentCardIndex] ? "flipped" : "not-flipped"} // Force re-render
+          ref={swiperRef}
           cards={cards}
+          cardIndex={currentCardIndex}
           renderCard={(card) => (
-            
             <Animated.View style={[styles.card, { transform: [{ rotateY }] }]}>
-              <TouchableOpacity onPress={flipCard} activeOpacity={1} style={styles.modalContainer}>
-                {/* Front Side */}
-                {!flipped && (
-                  <View style={styles.card}>
-                    <Text style={styles.cardText}>{card.question}</Text>
-                  </View>
-                )}
-
-                {/* Back Side */}
-                {flipped && (
-                  <View style={[styles.card, styles.card]}>
-                    <Text style={styles.cardText}>{card.answer}</Text>
-                  </View>
-                )}
-            </TouchableOpacity>
-            </Animated.View>              
+              <TouchableOpacity onPress={flipCard} activeOpacity={1}>
+                <Animated.Text style={[styles.cardText, { transform: [{ rotateY: textRotateY }] }]}>
+                  {flippedStates[currentCardIndex] ? card.answer : card.question}
+                </Animated.Text>
+              </TouchableOpacity>
+            </Animated.View>
           )}
-          onSwiped={resetFlip}
-          onTapCard={(cardIndex) => (
-            <View style={styles.card}>
-              <Text style={styles.cardText}>{cards[cardIndex].answer}</Text>
-            </View>)}
-          onSwipedAll={() => onClose()}
+          onSwiped={onSwiped}
+          onSwipedAll={onClose}
           backgroundColor="transparent"
         />
       </View>
     </Modal>
   );
 };
-
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContainer: {
-    width: "90%",
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 20,
-    alignItems: "center",
-    position: "relative",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    padding: 10,
-  },
-  deckTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  cardRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between", // Keeps buttons on edges
-    width: "100%",
-    marginVertical: 20,
-  },
-  navButton: {
-    width: 40, // Ensures fixed width, doesn't move
     alignItems: "center",
   },
   card: {
@@ -132,18 +96,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     textAlign: "center",
-  },
-  flipButton: {
-    backgroundColor: "#007bff",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
   },
 });
 
