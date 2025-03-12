@@ -4,10 +4,12 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import {useRouter, Slot} from 'expo-router';
-import { View, ActivityIndicator } from "react-native";
+import { useRouter, Slot } from 'expo-router';
+import { View, ActivityIndicator, StyleSheet, Pressable } from "react-native";
 import 'react-native-reanimated';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -22,7 +24,6 @@ export default function RootLayout() {
   });
 
   const [loading, setLoading] = useState(true);
-
 
   useEffect(() => {
     if (loaded) {
@@ -44,10 +45,19 @@ export default function RootLayout() {
     return null;
   }
 
-
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack screenOptions={{
+        headerShown: true,
+        headerTitle: "",
+        headerStyle: { backgroundColor: 'white' },
+        headerShadowVisible: false,
+        headerLeft: () => (
+          <Pressable onPress={() => router.back()} style={{ marginLeft: 10 }}>
+            <MaterialIcons name="arrow-back-ios" size={24} color="#3B82F6" />
+          </Pressable>
+        ),
+      }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
@@ -55,3 +65,26 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFF',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e1e1',
+  },
+  backButton: {
+    padding: 5,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  // Your other existing styles
+});
