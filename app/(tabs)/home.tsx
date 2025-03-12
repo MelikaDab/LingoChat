@@ -18,7 +18,7 @@ const flashcardDecks: FlashCardDeckData[] = [
   {
     id: "2",
     title: "Family",
-    words: 12,
+    words: 2,
     image: require("../../assets/images/family.png"),
     cards: [
       { question: "Father", answer: "Père" },
@@ -30,7 +30,7 @@ const flashcardDecks: FlashCardDeckData[] = [
 const recommendedFlashcards = [
   {
     id: "1",
-    title: "Colors",
+    title: "les couleurs",
     words: 10,
     // image: require("../../assets/images/colors.png"),
     cards: [
@@ -62,7 +62,6 @@ const recommendedFlashcards = [
 
 const Home = () => {
   const [selectedDeck, setSelectedDeck] = useState<FlashCardDeckData | null>(null);
-  const [isModalVisible, setModalVisible] = useState(false);
 
   return (
     <LinearGradient

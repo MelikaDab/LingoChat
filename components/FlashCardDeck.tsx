@@ -52,8 +52,8 @@ const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }
 
   return (
     <Modal visible={visible} transparent animationType="slide" >
-      <View style={styles.overlay}>
-        <View style={styles.swiperContainer}>  
+      <TouchableOpacity style={styles.overlay} activeOpacity={1}>
+        <View style={styles.swiperContainer} pointerEvents="box-none">  
         <Swiper
           key={currentCardIndex} // Force re-render on card change
           ref={swiperRef}
@@ -92,7 +92,7 @@ const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }
           backgroundColor="transparent"
         />
         </View>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 };
