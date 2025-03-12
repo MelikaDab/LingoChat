@@ -53,6 +53,7 @@ const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }
   return (
     <Modal visible={visible} transparent animationType="slide" >
       <View style={styles.overlay}>
+        <View style={styles.swiperContainer}>  
         <Swiper
           key={currentCardIndex} // Force re-render on card change
           ref={swiperRef}
@@ -90,6 +91,7 @@ const FlashCardDeck: React.FC<FlashCardDeckProps> = ({ visible, onClose, cards }
           onSwipedAll={onClose}
           backgroundColor="transparent"
         />
+        </View>
       </View>
     </Modal>
   );
@@ -102,7 +104,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   card: {
-    width: "80%", // Responsive width
+    width: 300, // Responsive width
     height: 300, // Fixed height for better proportions
     backgroundColor: "#f5f5f5",
     borderRadius: 15,
@@ -111,6 +113,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    alignSelf: "center"
+  },
+  swiperContainer: {
+    width: "100%",
+    height: "60%", // Adjust this value as needed
+    justifyContent: "center",
+    alignItems: "center",
   },
   face: {
     ...StyleSheet.absoluteFillObject,
@@ -126,27 +135,5 @@ const styles = StyleSheet.create({
     color: "#333",
   },
 });
-
-// const styles = StyleSheet.create({
-//   overlay: {
-//     flex: 1,
-//     backgroundColor: "rgba(0, 0, 0, 0.5)",
-//     justifyContent: "center",
-//     alignItems: "center",
-//   },
-//   card: {
-//     flex: 1, // Ensures it takes up the center space
-//     height: 150,
-//     backgroundColor: "#f5f5f5",
-//     justifyContent: "center",
-//     alignItems: "center",
-//     borderRadius: 10,
-//   },
-//   cardText: {
-//     fontSize: 18,
-//     fontWeight: "600",
-//     textAlign: "center",
-//   },
-// });
 
 export default FlashCardDeck;
