@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Text, View, FlatList, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import FlashCardDeckList from "@/components/FlashCardDeckList";
 import FlashCardDeck from "@/components/FlashCardDeck";
 
@@ -23,7 +25,7 @@ const recommendedFlashcards: FlashCardDeckData[] = [
       { question: "Red", answer: "Rouge" },
       { question: "Blue", answer: "Bleu" },
     ],
-  }, 
+  },
   {
     id: "2",
     title: "la famille",
@@ -33,7 +35,7 @@ const recommendedFlashcards: FlashCardDeckData[] = [
       { question: "Father", answer: "Père" },
       { question: "Mother", answer: "Mère" },
     ],
-  },   
+  },
   {
     id: "3",
     title: "Animals",
@@ -58,6 +60,8 @@ const recommendedFlashcards: FlashCardDeckData[] = [
 
 const Home = () => {
   const [selectedDeck, setSelectedDeck] = useState<FlashCardDeckData | null>(null);
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
 
   return (
     <LinearGradient
@@ -69,6 +73,10 @@ const Home = () => {
       <FlatList
         data={recommendedFlashcards}
         keyExtractor={(item) => item.id}
+        style={[
+          styles.flatList,
+          { paddingTop: insets.top }
+        ]}
         ListHeaderComponent={
           <>
             {/* Top Bar */}
@@ -104,7 +112,10 @@ const Home = () => {
           <TouchableOpacity onPress={() => setSelectedDeck(item)} style={styles.flashcardItem}>
           </TouchableOpacity>
         )}
-        contentContainerStyle={{ paddingBottom: 100 }} // Add space at bottom
+        contentContainerStyle={[
+          styles.flatListContent,
+          { paddingBottom: tabBarHeight + 20 } // Add space at bottom for tab bar
+        ]}
       />
 
       {/* FlashCardDeck Modal */}
@@ -118,12 +129,18 @@ const Home = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+  },
+  flatList: {
+    flex: 1,
+  },
+  flatListContent: {
+    paddingHorizontal: 20,
   },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 20,
+    marginTop: 10,
   },
   gems: {
     fontSize: 18,
@@ -201,7 +218,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
-    marginBottom: 20,    
+    marginBottom: 20,
   }
 });
 

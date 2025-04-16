@@ -4,6 +4,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { generateResponse } from '../services/OpenAIService';
 
 // Define message type
 interface Message {
@@ -18,6 +19,7 @@ export default function ChatScreen() {
     const [message, setMessage] = useState('');
     const [isRecording, setIsRecording] = useState(false);
     const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         { id: '1', text: 'Bonjour! Comment ça va?', sender: 'bot' },
         { id: '2', text: 'I\'m doing well, thanks!', sender: 'user' },
@@ -46,14 +48,43 @@ export default function ChatScreen() {
         };
     }, []);
 
-    const sendMessage = () => {
+    const sendMessage = async () => {
         if (message.trim().length > 0) {
-            setMessages([
-                ...messages,
-                { id: Date.now().toString(), text: message, sender: 'user' },
-            ]);
+            const userMessage: Message = {
+                id: Date.now().toString(),
+                text: message,
+                sender: 'user'
+            };
+
+            setMessages(prevMessages => [...prevMessages, userMessage]);
             setMessage('');
-            // Here you would typically send the message to a backend
+            setIsLoading(true);
+
+            try {
+                // Get response from OpenAI
+                const botResponse = await generateResponse(message);
+
+                // Add bot response to messages
+                const botMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    text: botResponse,
+                    sender: 'bot'
+                };
+
+                setMessages(prevMessages => [...prevMessages, botMessage]);
+            } catch (error) {
+                console.error('Error sending message:', error);
+                // Add error message
+                const errorMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    text: 'Sorry, I encountered an error. Please try again.',
+                    sender: 'bot'
+                };
+
+                setMessages(prevMessages => [...prevMessages, errorMessage]);
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -119,6 +150,7 @@ export default function ChatScreen() {
                             placeholder="Type a message..."
                             placeholderTextColor="#999"
                             multiline
+                            editable={!isLoading}
                         />
                         <TouchableOpacity
                             style={[
@@ -126,6 +158,7 @@ export default function ChatScreen() {
                                 isRecording && styles.recordingButton
                             ]}
                             onPress={toggleRecording}
+                            disabled={isLoading}
                         >
                             <MaterialIcons
                                 name={isRecording ? "stop" : "mic"}
@@ -136,10 +169,10 @@ export default function ChatScreen() {
                         <TouchableOpacity
                             style={[
                                 styles.sendButton,
-                                message.length === 0 && styles.disabledSendButton
+                                (message.length === 0 || isLoading) && styles.disabledSendButton
                             ]}
                             onPress={sendMessage}
-                            disabled={message.length === 0}
+                            disabled={message.length === 0 || isLoading}
                         >
                             <MaterialIcons name="send" size={24} color="#fff" />
                         </TouchableOpacity>
