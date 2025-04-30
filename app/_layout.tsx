@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter, Slot } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet, Pressable } from "react-native";
 import 'react-native-reanimated';
@@ -23,26 +23,18 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
     }
-
-    const checkOnboarding = async () => {
-      const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
-      if (!hasOnboarded) {
-        router.replace("/signup");
-      }
-      setLoading(false);
-    };
-
-    checkOnboarding();
   }, [loaded]);
 
-  if (!loaded) { // prevents rendering until fonts are loaded
-    return null;
+  if (!loaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4A90E2" />
+      </View>
+    );
   }
 
   return (
@@ -60,6 +52,7 @@ export default function RootLayout() {
       }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
+        <Stack.Screen name="signup" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
@@ -67,6 +60,12 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8FAFF',
@@ -86,5 +85,4 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  // Your other existing styles
 });

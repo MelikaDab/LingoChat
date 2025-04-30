@@ -26,7 +26,7 @@ export default {
             }
         },
         web: {
-            favicon: "./assets/favicon.png"
+            // favicon: "./assets/favicon.png"
         },
         extra: {
             // Access API key from .env file
