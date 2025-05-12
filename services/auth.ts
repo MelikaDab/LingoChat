@@ -28,3 +28,6 @@ export const authService = {
     return onAuthStateChanged(auth, callback);
   }
 }; 
+
+// Add default export to fix the warning
+export default authService; 

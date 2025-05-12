@@ -1,5 +1,12 @@
 import 'dotenv/config';
 
+// Debug: Log information about the API key without trying to access string methods
+console.log('[app.config.js] API key type:', typeof process.env.OPENAI_API_KEY);
+console.log('[app.config.js] API key exists:', process.env.OPENAI_API_KEY ? 'Yes' : 'No');
+
+// A safer way to handle the API key
+const apiKey = process.env.OPENAI_API_KEY || '';
+
 export default {
     expo: {
         name: "LingoChat",
@@ -23,14 +30,23 @@ export default {
             adaptiveIcon: {
                 foregroundImage: "./assets/adaptive-icon.png",
                 backgroundColor: "#ffffff"
-            }
+            },
+            permissions: ["RECORD_AUDIO"]
         },
         web: {
             // favicon: "./assets/favicon.png"
         },
+        plugins: [
+            [
+                "expo-av",
+                {
+                    "microphonePermission": "Allow LingoChat to access your microphone."
+                }
+            ]
+        ],
         extra: {
-            // Access API key from .env file
-            openAIApiKey: process.env.OPENAI_API_KEY || null,
+            // Make sure we're explicitly setting the OpenAI API key from the environment variable
+            openAIApiKey: apiKey,
         }
     }
 }; 
