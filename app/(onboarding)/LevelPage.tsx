@@ -3,7 +3,14 @@ import { useRouter } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useGlobalContext } from '../../context/GlobalContext';
 import { auth } from '../../firebase';
-import FirestoreService from '../../app/services/FirestoreService';
+import FirestoreService, { UserOnboardingOptions } from '../../app/services/FirestoreService';
+
+// Map display levels to CEFR standard levels with proper typing
+const LEVEL_MAPPING: Record<string, UserOnboardingOptions['proficiencyLevel']> = {
+    "Beginner": "a1",
+    "Intermediate": "b1",
+    "Advanced": "c1"
+};
 
 export default function LevelPage() {
     const router = useRouter();
@@ -15,7 +22,15 @@ export default function LevelPage() {
     // Pre-select the level if it exists in onboarding data
     useEffect(() => {
         if (onboardingData.proficiencyLevel) {
-            setSelectedLevel(onboardingData.proficiencyLevel);
+            // Handle possible formats - might be stored as CEFR (a1, b1, c1) or display names
+            const storedLevel = onboardingData.proficiencyLevel.toLowerCase();
+            if (storedLevel === "a1" || storedLevel === "beginner") {
+                setSelectedLevel("Beginner");
+            } else if (storedLevel === "b1" || storedLevel === "intermediate") {
+                setSelectedLevel("Intermediate");
+            } else if (storedLevel === "c1" || storedLevel === "advanced") {
+                setSelectedLevel("Advanced");
+            }
         }
         
         // Try to get the name from localStorage
@@ -46,22 +61,47 @@ export default function LevelPage() {
         try {
             setIsLoading(true);
             
-            // Update onboarding data with selected level
-            console.log("Saving level:", selectedLevel);
+            if (!selectedLevel) {
+                Alert.alert('Error', 'Please select a proficiency level');
+                setIsLoading(false);
+                return;
+            }
+            
+            // DEBUG: Log the selected level before mapping
+            console.log("DEBUG - Raw selectedLevel:", selectedLevel);
+            
+            // Map the display level to the CEFR level with proper typing
+            // Using direct mapping for clarity - no fallback to a1 unless explicitly needed
+            let cefrLevel: UserOnboardingOptions['proficiencyLevel'];
+            
+            if (selectedLevel === "Beginner") {
+                cefrLevel = "a1";
+            } else if (selectedLevel === "Intermediate") {
+                cefrLevel = "b1";
+            } else if (selectedLevel === "Advanced") {
+                cefrLevel = "c1";
+            } else {
+                // Only use a1 as a last resort fallback
+                console.warn("Warning: Unexpected selectedLevel value:", selectedLevel);
+                cefrLevel = "a1";
+            }
+            
+            console.log("DEBUG - Selected level mapping:", selectedLevel, "→", cefrLevel);
             
             // Ensure all required fields are set
-            const updatedData = {
-                name: userName, // Use the name from state which could be from localStorage
-                proficiencyLevel: selectedLevel as any,
-                targetLanguage: onboardingData.targetLanguage || 'French', // Default target language
+            const updatedData: UserOnboardingOptions = {
+                name: userName,
+                proficiencyLevel: cefrLevel, // Use the mapped CEFR level
+                targetLanguage: onboardingData.targetLanguage || 'French',
                 learningGoals: onboardingData.learningGoals || [],
                 preferredTopics: onboardingData.preferredTopics || [],
                 dailyGoalMinutes: onboardingData.dailyGoalMinutes || 10
             };
             
             console.log("Complete onboarding data to save:", updatedData);
+            console.log("DEBUG - Final proficiencyLevel being saved:", updatedData.proficiencyLevel);
             
-            // Update context data
+            // Update context data - properly typed
             setOnboardingData(updatedData);
             
             // Make sure user is logged in
@@ -71,14 +111,33 @@ export default function LevelPage() {
                 return;
             }
             
-            // Save directly with FirestoreService to ensure we're saving the right data
-            // This bypasses any potential state update delays
+            // Save directly with FirestoreService - without any "as any" type assertions
             await FirestoreService.saveUserOnboarding(userId, updatedData);
             console.log("Data saved directly via FirestoreService");
             
-            // Update GlobalContext state
-            await saveOnboardingData();
-            console.log("Data saved via context, isComplete:", isOnboardingComplete);
+            // IMPORTANT: Instead of calling saveOnboardingData() which might use stale data,
+            // refresh data directly from Firestore and update the context
+            try {
+                // Get the latest data from Firestore after our save
+                const refreshedData = await FirestoreService.getUserOnboarding(userId);
+                if (refreshedData) {
+                    console.log("Refreshed data from Firestore:", refreshedData);
+                    // Update the context with the refreshed data
+                    setOnboardingData(refreshedData);
+                    
+                    // Check if onboarding is complete
+                    const isComplete = !!(
+                        refreshedData.name && 
+                        refreshedData.name !== 'User' && 
+                        refreshedData.proficiencyLevel && 
+                        refreshedData.targetLanguage
+                    );
+                    console.log("Onboarding complete check:", isComplete);
+                }
+            } catch (error) {
+                console.error("Error refreshing data from Firestore:", error);
+                // Not critical since we already saved directly
+            }
             
             // Clean up localStorage after successfully saving to Firestore
             try {
@@ -124,6 +183,9 @@ export default function LevelPage() {
                             {selectedLevel === level && <View style={styles.selectedCircle} />}
                         </View>
                         <Text style={styles.optionText}>{level}</Text>
+                        <Text style={styles.cefrText}>
+                            {level === "Beginner" ? "(A1)" : level === "Intermediate" ? "(B1)" : "(C1)"}
+                        </Text>
                     </TouchableOpacity>
                 ))}
             </View>
@@ -143,24 +205,6 @@ export default function LevelPage() {
                     <Text style={styles.nextButtonText}>Next</Text>
                 )}
             </TouchableOpacity>
-
-            {/* Debug information */}
-            {__DEV__ && (
-                <View style={styles.debugInfo}>
-                    <Text style={styles.debugText}>
-                        UserId: {userId ? userId.substring(0, 8) + '...' : 'Not logged in'}
-                    </Text>
-                    <Text style={styles.debugText}>
-                        IsComplete: {isOnboardingComplete ? 'Yes' : 'No'}
-                    </Text>
-                    <Text style={styles.debugText}>
-                        Selected Level: {selectedLevel}
-                    </Text>
-                    <Text style={styles.debugText}>
-                        Name: {userName}
-                    </Text>
-                </View>
-            )}
         </View>
     );
 }
@@ -209,6 +253,11 @@ const styles = StyleSheet.create({
     optionText: {
         fontSize: 22,
         color: '#000',
+    },
+    cefrText: {
+        fontSize: 16,
+        color: '#666',
+        marginLeft: 8,
     },
     nextButton: {
         width: '100%',

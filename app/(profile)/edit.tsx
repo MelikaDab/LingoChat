@@ -1,18 +1,76 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useGlobalContext } from '../../context/GlobalContext';
+
+// Add a type definition for Firebase user data
+interface FirebaseUserData {
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+  name?: string;
+  [key: string]: any; // Allow other fields from Firebase
+}
 
 export default function EditProfileScreen() {
-    const [name, setName] = useState('John Doe');
-    const [email, setEmail] = useState('john@lingochat.com');
-    const [nativeLanguage, setNativeLanguage] = useState('English');
+    const { onboardingData } = useGlobalContext();
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('kylan02@gmail.com'); // Default email
+    const [photoURL, setPhotoURL] = useState<string | null>(null);
+    const [initials, setInitials] = useState('KO'); // Default initials
 
     const router = useRouter();
 
+    useEffect(() => {
+        // Cast onboardingData to FirebaseUserData type to avoid TypeScript errors
+        const userData = onboardingData as unknown as FirebaseUserData;
+        
+        if (userData) {
+            console.log("User data loaded:", userData); // Debug log
+            
+            // Set display name (prefer displayName over name)
+            if (userData.displayName) {
+                setName(userData.displayName);
+                
+                // Generate initials from displayName
+                const userInitials = userData.displayName
+                    .split(' ')
+                    .map(part => part.charAt(0))
+                    .join('')
+                    .toUpperCase()
+                    .substring(0, 2);
+                setInitials(userInitials);
+            } else if (userData.name) {
+                setName(userData.name);
+                
+                // Generate initials from name
+                const userInitials = userData.name
+                    .split(' ')
+                    .map(part => part.charAt(0))
+                    .join('')
+                    .toUpperCase()
+                    .substring(0, 2);
+                setInitials(userInitials);
+            }
+            
+            // Set email
+            if (userData.email) {
+                setEmail(userData.email);
+            }
+            
+            // Set profile photo URL
+            if (userData.photoURL) {
+                console.log("Photo URL found:", userData.photoURL); // Debug log
+                setPhotoURL(userData.photoURL);
+            }
+        }
+    }, [onboardingData]);
+
     const handleSave = () => {
-        // Here you would save the profile information
+        // Save the profile information to Firebase
+        Alert.alert("Success", "Profile updated successfully");
         router.back();
     };
 
@@ -24,9 +82,17 @@ export default function EditProfileScreen() {
                 {/* Profile Picture */}
                 <View style={styles.avatarSection}>
                     <View style={styles.avatarContainer}>
-                        <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>JD</Text>
-                        </View>
+                        {photoURL ? (
+                            <Image 
+                                source={{ uri: photoURL }} 
+                                style={styles.avatar}
+                                resizeMode="cover"
+                            />
+                        ) : (
+                            <View style={styles.avatar}>
+                                <Text style={styles.avatarText}>{initials}</Text>
+                            </View>
+                        )}
                         <TouchableOpacity style={styles.editAvatarButton}>
                             <MaterialIcons name="camera-alt" size={24} color="white" />
                         </TouchableOpacity>
@@ -49,36 +115,13 @@ export default function EditProfileScreen() {
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Email</Text>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, styles.disabledInput]}
                             value={email}
-                            onChangeText={setEmail}
                             placeholder="Your email"
                             keyboardType="email-address"
                             autoCapitalize="none"
+                            editable={false}
                         />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Native Language</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={nativeLanguage}
-                            onChangeText={setNativeLanguage}
-                            placeholder="Your native language"
-                        />
-                    </View>
-                </View>
-
-                {/* Connected Accounts */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Connected Accounts</Text>
-
-                    <View style={styles.connectedAccount}>
-                        <View style={styles.accountInfo}>
-                            <MaterialIcons name="account-circle" size={24} color="#DB4437" style={styles.accountIcon} />
-                            <Text style={styles.accountText}>Google</Text>
-                        </View>
-                        <Text style={styles.connectedText}>Connected</Text>
                     </View>
                 </View>
 
@@ -170,41 +213,9 @@ const styles = StyleSheet.create({
         padding: 12,
         fontSize: 16,
     },
-    section: {
-        marginBottom: 30,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 15,
-        color: '#333',
-    },
-    connectedAccount: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: 'white',
-        padding: 15,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    accountInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    accountIcon: {
-        width: 24,
-        height: 24,
-        marginRight: 12,
-    },
-    accountText: {
-        fontSize: 16,
-        color: '#333',
-    },
-    connectedText: {
-        fontSize: 14,
-        color: '#10B981',
+    disabledInput: {
+        backgroundColor: '#F3F4F6',
+        color: '#374151',
     },
     deleteButton: {
         padding: 15,

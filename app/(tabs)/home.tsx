@@ -3,6 +3,7 @@ import { Text, View, FlatList, TouchableOpacity, Image, StyleSheet } from "react
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { MaterialIcons } from '@expo/vector-icons';
 import FlashCardDeckList from "@/components/FlashCardDeckList";
 import FlashCardDeck from "@/components/FlashCardDeck";
 
@@ -70,48 +71,120 @@ const Home = () => {
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
     >
+      {/* Header */}
+      <View style={[
+        styles.header,
+        { paddingTop: insets.top + 16 } // Add safe area top inset to padding
+      ]}>
+        <Text style={styles.headerTitle}>LingoChat</Text>
+      </View>
+
       <FlatList
-        data={recommendedFlashcards}
+        data={[{ id: 'dummy' }]}
         keyExtractor={(item) => item.id}
-        style={[
-          styles.flatList,
-          { paddingTop: insets.top }
-        ]}
+        style={styles.flatList}
         ListHeaderComponent={
           <>
-            {/* Top Bar */}
-            <View style={styles.topBar}>
-              <Text style={styles.gems}>💎 1230</Text>
-              <Text style={styles.streak}>🔥 45</Text>
+            {/* Stats Bar */}
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>💎 1,230</Text>
+                <Text style={styles.statLabel}>Gems</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>🔥 45</Text>
+                <Text style={styles.statLabel}>Day Streak</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>📚 A1</Text>
+                <Text style={styles.statLabel}>Level</Text>
+              </View>
             </View>
 
-            {/* Level Section */}
-            <View style={styles.levelContainer}>
-              <Text style={styles.levelTitle}>Beginner</Text>
+            {/* Current Deck Section */}
+            <View style={styles.currentDeckContainer}>
+              <View style={styles.currentDeckHeader}>
+                <Text style={styles.currentDeckTitle}>Today's Deck</Text>
+                <TouchableOpacity>
+                  <MaterialIcons name="more-horiz" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.deckCardContainer}>
+                <View style={styles.deckInfoContainer}>
+                  <Text style={styles.deckTitle}>les couleurs</Text>
+                  <Text style={styles.deckProgress}>2/10 cards reviewed</Text>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: "20%" }]} />
+                  </View>
+                </View>
+                
+                <TouchableOpacity 
+                  onPress={() => setSelectedDeck(recommendedFlashcards[0])} 
+                  style={styles.studyButton}
+                >
+                  <Text style={styles.studyButtonText}>Continue</Text>
+                  <MaterialIcons name="arrow-forward" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Recommended Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recommended</Text>
               <TouchableOpacity>
-                <Text style={styles.changeLevel}>Change Level</Text>
+                <Text style={styles.sectionAction}>See All</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Flashcard Deck */}
-            <View style={styles.flashcardContainer}>
-              <Text style={styles.deckTitle}>Flash Card Deck</Text>
-              <Text style={styles.deckSubtitle}>les couleurs</Text>
-              <Text style={styles.deckDescription}>Finish reviewing your cards!</Text>
-              <TouchableOpacity onPress={() => setSelectedDeck(recommendedFlashcards[0])} style={styles.studyButton}>
-                <Text style={styles.studyButtonText}>Continue Studying</Text>
-              </TouchableOpacity>
+            
+            {/* Recommended Decks */}
+            <View style={styles.recommendedDecksGrid}>
+              {recommendedFlashcards.map((deck) => (
+                <TouchableOpacity 
+                  key={deck.id} 
+                  style={styles.deckCard}
+                  onPress={() => setSelectedDeck(deck)}
+                >
+                  <View style={styles.deckIconContainer}>
+                    <Text style={styles.deckIcon}>
+                      {deck.title.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.deckCardTitle}>{deck.title}</Text>
+                  <Text style={styles.deckCardCount}>{deck.words} words</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-
-            {/* Recommended Section Title */}
-            <Text style={styles.recommendedTitle}>Recommended</Text>
-            <FlashCardDeckList flashcardDecks={recommendedFlashcards} setSelectedDeck={setSelectedDeck} />
+            
+            {/* Practice Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Daily Practice</Text>
+            </View>
+            
+            <TouchableOpacity style={styles.practiceCard}>
+              <View style={styles.practiceIconContainer}>
+                <MaterialIcons name="mic" size={24} color="#3B82F6" />
+              </View>
+              <View style={styles.practiceContent}>
+                <Text style={styles.practiceTitle}>Speaking Practice</Text>
+                <Text style={styles.practiceSubtitle}>Improve your pronunciation</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={24} color="#999" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.practiceCard}>
+              <View style={styles.practiceIconContainer}>
+                <MaterialIcons name="headset" size={24} color="#3B82F6" />
+              </View>
+              <View style={styles.practiceContent}>
+                <Text style={styles.practiceTitle}>Listening Exercise</Text>
+                <Text style={styles.practiceSubtitle}>Train your comprehension</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={24} color="#999" />
+            </TouchableOpacity>
           </>
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => setSelectedDeck(item)} style={styles.flashcardItem}>
-          </TouchableOpacity>
-        )}
+        renderItem={() => null}
         contentContainerStyle={[
           styles.flatListContent,
           { paddingBottom: tabBarHeight + 20 } // Add space at bottom for tab bar
@@ -129,6 +202,28 @@ const Home = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    position: 'relative',
+  },
+  header: {
+    padding: 16,
+    paddingBottom: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e1e1',
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   flatList: {
     flex: 1,
@@ -136,90 +231,191 @@ const styles = StyleSheet.create({
   flatListContent: {
     paddingHorizontal: 20,
   },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    marginTop: 10,
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 16,
+    paddingHorizontal: 10,
   },
-  gems: {
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
     fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
-  streak: {
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  currentDeckContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  currentDeckHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  currentDeckTitle: {
     fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  levelContainer: {
-    alignItems: "center",
-    marginBottom: 20,
+  deckCardContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
   },
-  levelTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-  changeLevel: {
-    color: "blue",
-    marginTop: 5,
-  },
-  flashcardContainer: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 20,
+  deckInfoContainer: {
+    marginBottom: 16,
   },
   deckTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
-  deckSubtitle: {
-    fontSize: 16,
-    color: "#666",
-  },
-  deckDescription: {
+  deckProgress: {
     fontSize: 14,
-    color: "#999",
-    marginVertical: 10,
+    color: '#666',
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#e1e1e1',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#3B82F6',
+    borderRadius: 3,
   },
   studyButton: {
-    backgroundColor: "#4A90E2",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   studyButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: 'white',
+    fontWeight: 'bold',
+    marginRight: 8,
   },
-  recommendedTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
   },
-  flashcardItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  flashcardImage: {
+  sectionAction: {
+    color: '#3B82F6',
+    fontSize: 14,
+  },
+  recommendedDecksGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  deckCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    width: '48%',
+    marginBottom: 16,
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  deckIconContainer: {
     width: 50,
     height: 50,
-    marginRight: 10,
+    borderRadius: 25,
+    backgroundColor: '#E8F0FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  flashcardTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+  deckIcon: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3B82F6',
   },
-  flashcardWords: {
+  deckCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  deckCardCount: {
+    fontSize: 12,
+    color: '#666',
+  },
+  practiceCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  practiceIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E8F0FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  practiceContent: {
+    flex: 1,
+  },
+  practiceTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  practiceSubtitle: {
     fontSize: 14,
-    color: "#666",
+    color: '#666',
   },
-  recommendedItem: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 20,
-  }
 });
 
 export default Home;

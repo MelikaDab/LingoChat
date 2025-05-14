@@ -105,26 +105,26 @@ export default function RootLayout() {
 
   return (
     <GlobalProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <NavigationGuard />
-        <Stack screenOptions={{
-          headerShown: true,
-          headerTitle: "",
-          headerStyle: { backgroundColor: 'white' },
-          headerShadowVisible: false,
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} style={{ marginLeft: 10 }}>
-              <MaterialIcons name="arrow-back-ios" size={24} color="#3B82F6" />
-            </Pressable>
-          ),
-        }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
+      <Stack screenOptions={{
+        headerShown: true,
+        headerTitle: "",
+        headerStyle: { backgroundColor: 'white' },
+        headerShadowVisible: false,
+        headerLeft: () => (
+          <Pressable onPress={() => router.back()} style={{ marginLeft: 10 }}>
+            <MaterialIcons name="arrow-back-ios" size={24} color="#3B82F6" />
+          </Pressable>
+        ),
+      }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" />
           <Stack.Screen name="signup" options={{ headerShown: false }} />
           <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-        </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      </Stack>
+      <StatusBar style="auto" />
+    </ThemeProvider>
     </GlobalProvider>
   );
 }

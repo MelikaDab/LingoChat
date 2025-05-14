@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator, Alert, Animated } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -33,11 +33,42 @@ export default function ChatScreen() {
     const audioChunksRef = useRef<Blob[]>([]);
     const [webAudioUrl, setWebAudioUrl] = useState<string | null>(null);
     
-    const [messages, setMessages] = useState<Message[]>([
-        { id: '1', text: 'Bonjour! Comment ça va?', sender: 'bot' },
-        { id: '2', text: 'I\'m doing well, thanks!', sender: 'user' },
-        { id: '3', text: 'Très bien! Parlons en français.', sender: 'bot' },
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const flatListRef = useRef<FlatList<Message>>(null);
+    
+    // Animation for recording button pulse effect
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    
+    // Setup pulse animation when recording
+    useEffect(() => {
+        let pulseAnimation: Animated.CompositeAnimation;
+        
+        if (isRecording) {
+            pulseAnimation = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, {
+                        toValue: 1.2,
+                        duration: 800,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulseAnim, {
+                        toValue: 1,
+                        duration: 800,
+                        useNativeDriver: true,
+                    }),
+                ])
+            );
+            pulseAnimation.start();
+        } else {
+            pulseAnim.setValue(1);
+        }
+        
+        return () => {
+            if (pulseAnimation) {
+                pulseAnimation.stop();
+            }
+        };
+    }, [isRecording, pulseAnim]);
 
     // Set up keyboard listeners
     useEffect(() => {
@@ -368,23 +399,37 @@ export default function ChatScreen() {
             styles.messageBubble,
             item.sender === 'user' ? styles.userMessage : styles.botMessage
         ]}>
-            <Text style={[
-                styles.messageText,
-                item.sender === 'user' && styles.userMessageText
-            ]}>{item.text}</Text>
-            
-            {item.hasAudio && item.audioUri && (
-                <TouchableOpacity
-                    style={styles.audioButton}
-                    onPress={() => playAudio(item.id, item.audioUri!)}
-                >
-                    <MaterialIcons
-                        name={currentlyPlayingId === item.id ? "stop" : "volume-up"}
-                        size={20}
-                        color={item.sender === 'user' ? "white" : "#3B82F6"}
-                    />
-                </TouchableOpacity>
+            {item.sender === 'bot' && (
+                <View style={styles.botAvatar}>
+                    <MaterialIcons name="smart-toy" size={16} color="#3B82F6" />
+                </View>
             )}
+            <View style={[
+                styles.messageContent,
+                item.sender === 'user' ? styles.userMessageContent : styles.botMessageContent
+            ]}>
+                <View style={styles.textContainer}>
+                    <Text style={[
+                        styles.messageText,
+                        item.sender === 'user' && styles.userMessageText
+                    ]}>{item.text}</Text>
+                </View>
+                
+                {item.hasAudio && item.audioUri && (
+                    <View style={styles.audioButtonContainer}>
+                        <TouchableOpacity
+                            style={styles.audioButton}
+                            onPress={() => playAudio(item.id, item.audioUri!)}
+                        >
+                            <MaterialIcons
+                                name={currentlyPlayingId === item.id ? "stop" : "volume-up"}
+                                size={20}
+                                color={item.sender === 'user' ? "white" : "#3B82F6"}
+                            />
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
         </View>
     );
 
@@ -403,29 +448,48 @@ export default function ChatScreen() {
                 <Text style={styles.headerTitle}>Chat with LingoBot</Text>
             </View>
 
-            <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-                {/* Messages */}
+            {/* Main Content Area - Extends exactly to input box */}
+            <View style={[
+                styles.contentContainer, 
+                { 
+                    // Add extensive bottom padding to guarantee it extends well past the input box
+                    paddingBottom: 120
+                }
+            ]}>
+                {/* Messages - FlexGrow to fill available space */}
                 <FlatList
+                    ref={flatListRef}
                     data={messages}
                     renderItem={renderMessage}
                     keyExtractor={item => item.id}
                     style={styles.messageList}
-                    contentContainerStyle={[
-                        styles.messageListContent,
-                        { paddingBottom: tabBarHeight + 16 } // Use tabBarHeight for consistent padding
-                    ]}
+                    contentContainerStyle={styles.messageListContent}
                     inverted={false}
+                    // Auto-scroll to bottom on new messages
+                    onContentSizeChange={() => {
+                        if (messages.length > 0) {
+                            setTimeout(() => {
+                                try {
+                                    flatListRef.current?.scrollToEnd({ animated: true });
+                                } catch (error) {
+                                    console.log("Error scrolling to bottom:", error);
+                                }
+                            }, 100);
+                        }
+                    }}
                 />
+            </View>
 
-                {/* Input Area - Fixed Position */}
+            {/* Input Area - Fixed at bottom */}
+            <View style={[
+                styles.inputContainer, 
+                { bottom: tabBarHeight }
+            ]}>
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     keyboardVerticalOffset={Platform.OS === 'ios' ? tabBarHeight : 0}
-                    style={[styles.inputContainer, { bottom: tabBarHeight }]}
                 >
-                    <View style={[
-                        styles.inputWrapper
-                    ]}>
+                    <View style={styles.inputWrapper}>
                         <TextInput
                             style={styles.input}
                             value={message}
@@ -435,24 +499,30 @@ export default function ChatScreen() {
                             multiline
                             editable={!isLoading && !isRecording && !isTranscribing}
                         />
-                        <TouchableOpacity
-                            style={[
-                                styles.recordButton,
-                                isRecording && styles.recordingButton
-                            ]}
-                            onPress={toggleRecording}
-                            disabled={isLoading || isTranscribing}
-                        >
-                            {isTranscribing ? (
-                                <ActivityIndicator size="small" color="#fff" />
-                            ) : (
-                                <MaterialIcons
-                                    name={isRecording ? "stop" : "mic"}
-                                    size={24}
-                                    color="#fff"
-                                />
-                            )}
-                        </TouchableOpacity>
+                        
+                        <Animated.View style={{
+                            transform: [{ scale: pulseAnim }]
+                        }}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.recordButton,
+                                    isRecording && styles.recordingButton
+                                ]}
+                                onPress={toggleRecording}
+                                disabled={isLoading || isTranscribing}
+                            >
+                                {isTranscribing ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <MaterialIcons
+                                        name={isRecording ? "stop" : "mic"}
+                                        size={24}
+                                        color="#fff"
+                                    />
+                                )}
+                            </TouchableOpacity>
+                        </Animated.View>
+                        
                         <TouchableOpacity
                             style={[
                                 styles.sendButton,
@@ -465,7 +535,7 @@ export default function ChatScreen() {
                         </TouchableOpacity>
                     </View>
                 </KeyboardAvoidingView>
-            </SafeAreaView>
+            </View>
         </LinearGradient>
     );
 }
@@ -473,9 +543,11 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        position: 'relative',
     },
-    safeArea: {
+    contentContainer: {
         flex: 1,
+        marginTop: 8,
     },
     header: {
         padding: 16,
@@ -484,6 +556,14 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#e1e1e1',
         zIndex: 10,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
     },
     headerTitle: {
         fontSize: 18,
@@ -492,61 +572,109 @@ const styles = StyleSheet.create({
     },
     messageList: {
         flex: 1,
-        padding: 10,
+        paddingHorizontal: 15,
     },
     messageListContent: {
         paddingTop: 10,
+        paddingBottom: 150, // Extra padding at the bottom for good measure
     },
     messageBubble: {
-        maxWidth: '80%',
-        padding: 12,
-        borderRadius: 18,
+        maxWidth: '85%',
         marginVertical: 5,
         flexDirection: 'row',
+        alignItems: 'flex-start',
+        width: 'auto',
+    },
+    messageContent: {
+        padding: 12,
+        borderRadius: 18,
+        flexDirection: 'row',
         alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
+        flexShrink: 1,
     },
     userMessage: {
         alignSelf: 'flex-end',
-        backgroundColor: '#3B82F6',
     },
     botMessage: {
         alignSelf: 'flex-start',
+    },
+    userMessageContent: {
+        backgroundColor: '#3B82F6',
+        borderBottomRightRadius: 5,
+    },
+    botMessageContent: {
         backgroundColor: 'white',
+        borderBottomLeftRadius: 5,
+    },
+    botAvatar: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: '#E8F0FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 6,
+        marginTop: 6,
+    },
+    textContainer: {
+        flex: 1,
     },
     messageText: {
         fontSize: 16,
         color: '#333',
-        flex: 1,
+        flexShrink: 1,
     },
     userMessageText: {
         color: 'white',
     },
-    audioButton: {
+    audioButtonContainer: {
         marginLeft: 8,
+        alignSelf: 'center',
+    },
+    audioButton: {
         padding: 4,
+        borderRadius: 12,
     },
     inputContainer: {
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 0,
-        padding: 10,
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
         borderTopWidth: 1,
-        borderTopColor: '#e1e1e1',
+        borderTopColor: 'rgba(225, 225, 225, 0.8)',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        zIndex: 1, // Ensure input sits above the FlatList
+        height: 70, // Keep this the same
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'white',
         borderRadius: 24,
-        paddingVertical: 5,
+        paddingVertical: 8,
         paddingHorizontal: 12,
+        margin: 10,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
     },
     input: {
         flex: 1,
         fontSize: 16,
         maxHeight: 100,
+        paddingVertical: 4,
     },
     recordButton: {
         backgroundColor: '#3B82F6',

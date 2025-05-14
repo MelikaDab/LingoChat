@@ -62,6 +62,11 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // If we have data from firestore
       if (data) {
         console.log("Loaded onboarding data from Firestore:", data);
+        console.log("Loaded proficiency level:", data.proficiencyLevel);
+        
+        // Ensure proficiency level is in correct format
+        // (at this point it should already be in CEFR format from Firestore)
+        const originalLevel = data.proficiencyLevel;
         
         // Check if we need to merge with localStorage data
         try {
@@ -134,6 +139,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     try {
       console.log("Saving onboarding data to Firestore:", onboardingData);
+      console.log("Current proficiency level in context:", onboardingData.proficiencyLevel);
       
       // Try to get name from localStorage if not in context
       let nameToUse = onboardingData.name;
@@ -147,15 +153,37 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.log("Error accessing localStorage:", e);
       }
       
+      // Validate and ensure proficiencyLevel is a valid CEFR level or legacy format
+      let validatedLevel = onboardingData.proficiencyLevel || 'a1';
+      
+      // Convert any legacy format names to CEFR codes if needed
+      if (validatedLevel.toLowerCase() === 'beginner') {
+        validatedLevel = 'a1';
+      } else if (validatedLevel.toLowerCase() === 'intermediate') {
+        validatedLevel = 'b1';
+      } else if (validatedLevel.toLowerCase() === 'advanced') {
+        validatedLevel = 'c1';
+      }
+      
+      console.log("Validated proficiency level:", validatedLevel);
+      
       // Ensure we have all required fields before saving
       const dataToSave: UserOnboardingOptions = {
         name: nameToUse || 'User',
-        proficiencyLevel: onboardingData.proficiencyLevel as any || 'Beginner',
+        proficiencyLevel: validatedLevel as any, // Use validated level
         targetLanguage: onboardingData.targetLanguage || 'French',
         learningGoals: onboardingData.learningGoals || [],
         preferredTopics: onboardingData.preferredTopics || [],
         dailyGoalMinutes: onboardingData.dailyGoalMinutes || 10
       };
+      
+      console.log("Final data being saved to Firestore:", JSON.stringify(dataToSave, null, 2));
+      console.log("Proficiency level type:", typeof dataToSave.proficiencyLevel);
+      
+      // Double-check we're only using CEFR codes for storage
+      if (!['a1', 'a2', 'b1', 'b2', 'c1', 'c2'].includes(dataToSave.proficiencyLevel.toLowerCase())) {
+        console.warn("Warning: Saving non-CEFR level format:", dataToSave.proficiencyLevel);
+      }
       
       // Save the data
       await FirestoreService.saveUserOnboarding(userId, dataToSave);

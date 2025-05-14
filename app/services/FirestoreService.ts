@@ -16,7 +16,7 @@ import {
 // Define user onboarding options interface
 export interface UserOnboardingOptions {
   name: string;
-  proficiencyLevel: 'Beginner' | 'Intermediate' | 'Advanced';
+  proficiencyLevel: 'a1' | 'a2' | 'b1' | 'b2' | 'c1' | 'c2' | 'Beginner' | 'Intermediate' | 'Advanced';
   // Add any other onboarding fields you might need
   targetLanguage?: string;
   learningGoals?: string[];
@@ -34,7 +34,7 @@ export interface UserProfile {
   updatedAt: any;
   // Onboarding data now directly on user profile
   name?: string;
-  proficiencyLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
+  proficiencyLevel?: 'a1' | 'a2' | 'b1' | 'b2' | 'c1' | 'c2' | 'Beginner' | 'Intermediate' | 'Advanced';
   targetLanguage?: string;
   learningGoals?: string[];
   preferredTopics?: string[];
@@ -49,13 +49,37 @@ const FirestoreService = {
   ): Promise<void> => {
     try {
       console.log("FirestoreService: Saving user onboarding for user:", userId);
-      console.log("FirestoreService: Onboarding data:", JSON.stringify(onboardingOptions));
+      console.log("FirestoreService: Onboarding data:", JSON.stringify(onboardingOptions, null, 2));
+      console.log("FirestoreService: Proficiency level:", onboardingOptions.proficiencyLevel);
+      console.log("FirestoreService: Proficiency level type:", typeof onboardingOptions.proficiencyLevel);
+      
+      // Normalize proficiency level to CEFR format if needed
+      let normalizedLevel = onboardingOptions.proficiencyLevel;
+      
+      // Convert to lowercase for consistent comparisons
+      const levelLower = normalizedLevel.toLowerCase();
+      
+      // Map legacy display names to CEFR codes if needed
+      if (levelLower === 'beginner') {
+        normalizedLevel = 'a1';
+      } else if (levelLower === 'intermediate') {
+        normalizedLevel = 'b1';
+      } else if (levelLower === 'advanced') {
+        normalizedLevel = 'c1';
+      }
+      
+      // Check if it's a valid CEFR level after normalization
+      if (!['a1', 'a2', 'b1', 'b2', 'c1', 'c2'].includes(normalizedLevel.toLowerCase())) {
+        console.warn("FirestoreService: Non-standard proficiency level:", normalizedLevel);
+      }
+      
+      console.log("FirestoreService: Normalized level for database:", normalizedLevel);
       
       // Verify required fields
-      if (!onboardingOptions.name || !onboardingOptions.proficiencyLevel || !onboardingOptions.targetLanguage) {
+      if (!onboardingOptions.name || !normalizedLevel || !onboardingOptions.targetLanguage) {
         console.error("FirestoreService: Missing required onboarding fields:", {
           hasName: !!onboardingOptions.name,
-          hasProficiency: !!onboardingOptions.proficiencyLevel,
+          hasProficiency: !!normalizedLevel,
           hasTargetLanguage: !!onboardingOptions.targetLanguage
         });
       }
@@ -72,7 +96,7 @@ const FirestoreService = {
         await updateDoc(userDocRef, {
           // Add onboarding data as top-level fields
           name: onboardingOptions.name,
-          proficiencyLevel: onboardingOptions.proficiencyLevel,
+          proficiencyLevel: normalizedLevel, // Use normalized CEFR level
           targetLanguage: onboardingOptions.targetLanguage,
           learningGoals: onboardingOptions.learningGoals || [],
           preferredTopics: onboardingOptions.preferredTopics || [],
@@ -89,7 +113,7 @@ const FirestoreService = {
           photoURL: auth.currentUser?.photoURL || '',
           // Add onboarding data as top-level fields
           name: onboardingOptions.name,
-          proficiencyLevel: onboardingOptions.proficiencyLevel,
+          proficiencyLevel: normalizedLevel, // Use normalized CEFR level
           targetLanguage: onboardingOptions.targetLanguage,
           learningGoals: onboardingOptions.learningGoals || [],
           preferredTopics: onboardingOptions.preferredTopics || [],
@@ -108,6 +132,14 @@ const FirestoreService = {
           proficiencyLevel: data.proficiencyLevel,
           targetLanguage: data.targetLanguage
         });
+        
+        // Verify the proficiency level was saved in the correct CEFR format
+        const savedLevel = data.proficiencyLevel?.toLowerCase();
+        if (!['a1', 'a2', 'b1', 'b2', 'c1', 'c2'].includes(savedLevel)) {
+          console.error("FirestoreService: ERROR - proficiencyLevel was not saved in CEFR format!", savedLevel);
+        } else {
+          console.log("FirestoreService: SUCCESS - proficiencyLevel correctly saved as CEFR level:", savedLevel);
+        }
       }
       
       console.log('User onboarding options saved successfully!');
@@ -130,10 +162,33 @@ const FirestoreService = {
         if (userData.name || userData.proficiencyLevel || userData.targetLanguage) {
           console.log("FirestoreService: Found onboarding data at top level");
           
+          // Normalize proficiency level
+          let proficiencyLevel = userData.proficiencyLevel;
+          
+          // Make sure we have a valid CEFR level
+          if (proficiencyLevel) {
+            // Convert to lowercase for consistent comparison
+            const lowerLevel = proficiencyLevel.toLowerCase();
+            
+            // Handle legacy format if found in database
+            if (lowerLevel === 'beginner') {
+              proficiencyLevel = 'a1';
+            } else if (lowerLevel === 'intermediate') {
+              proficiencyLevel = 'b1';
+            } else if (lowerLevel === 'advanced') {
+              proficiencyLevel = 'c1';
+            } else if (['a1', 'a2', 'b1', 'b2', 'c1', 'c2'].includes(lowerLevel)) {
+              // It's already a valid CEFR level code, just normalize the case
+              proficiencyLevel = lowerLevel;
+            }
+            
+            console.log("FirestoreService: Normalized proficiency level:", proficiencyLevel);
+          }
+          
           // Construct onboarding data from top-level fields
           const onboardingData: UserOnboardingOptions = {
             name: userData.name || '',
-            proficiencyLevel: userData.proficiencyLevel as any || '',
+            proficiencyLevel: proficiencyLevel as any || 'a1',
             targetLanguage: userData.targetLanguage || '',
             learningGoals: userData.learningGoals || [],
             preferredTopics: userData.preferredTopics || [],
