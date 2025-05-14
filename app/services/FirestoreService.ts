@@ -17,11 +17,6 @@ import {
 export interface UserOnboardingOptions {
   name: string;
   proficiencyLevel: 'a1' | 'a2' | 'b1' | 'b2' | 'c1' | 'c2' | 'Beginner' | 'Intermediate' | 'Advanced';
-  // Add any other onboarding fields you might need
-  targetLanguage?: string;
-  learningGoals?: string[];
-  preferredTopics?: string[];
-  dailyGoalMinutes?: number;
 }
 
 // User profile interface
@@ -35,10 +30,14 @@ export interface UserProfile {
   // Onboarding data now directly on user profile
   name?: string;
   proficiencyLevel?: 'a1' | 'a2' | 'b1' | 'b2' | 'c1' | 'c2' | 'Beginner' | 'Intermediate' | 'Advanced';
-  targetLanguage?: string;
-  learningGoals?: string[];
-  preferredTopics?: string[];
-  dailyGoalMinutes?: number;
+}
+
+// Define flashcard interface
+export interface Flashcard {
+  id?: string;
+  english: string;
+  french: string;
+  createdAt?: any;
 }
 
 const FirestoreService = {
@@ -76,11 +75,10 @@ const FirestoreService = {
       console.log("FirestoreService: Normalized level for database:", normalizedLevel);
       
       // Verify required fields
-      if (!onboardingOptions.name || !normalizedLevel || !onboardingOptions.targetLanguage) {
+      if (!onboardingOptions.name || !normalizedLevel) {
         console.error("FirestoreService: Missing required onboarding fields:", {
           hasName: !!onboardingOptions.name,
-          hasProficiency: !!normalizedLevel,
-          hasTargetLanguage: !!onboardingOptions.targetLanguage
+          hasProficiency: !!normalizedLevel
         });
       }
       
@@ -96,11 +94,8 @@ const FirestoreService = {
         await updateDoc(userDocRef, {
           // Add onboarding data as top-level fields
           name: onboardingOptions.name,
+          displayName: onboardingOptions.name, // Also update displayName field
           proficiencyLevel: normalizedLevel, // Use normalized CEFR level
-          targetLanguage: onboardingOptions.targetLanguage,
-          learningGoals: onboardingOptions.learningGoals || [],
-          preferredTopics: onboardingOptions.preferredTopics || [],
-          dailyGoalMinutes: onboardingOptions.dailyGoalMinutes || 10,
           updatedAt: serverTimestamp()
         });
       } else {
@@ -109,15 +104,11 @@ const FirestoreService = {
         await setDoc(userDocRef, {
           uid: userId,
           email: auth.currentUser?.email || '',
-          displayName: auth.currentUser?.displayName || onboardingOptions.name,
+          displayName: onboardingOptions.name, // Set displayName to the name field
           photoURL: auth.currentUser?.photoURL || '',
           // Add onboarding data as top-level fields
           name: onboardingOptions.name,
           proficiencyLevel: normalizedLevel, // Use normalized CEFR level
-          targetLanguage: onboardingOptions.targetLanguage,
-          learningGoals: onboardingOptions.learningGoals || [],
-          preferredTopics: onboardingOptions.preferredTopics || [],
-          dailyGoalMinutes: onboardingOptions.dailyGoalMinutes || 10,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
@@ -129,8 +120,7 @@ const FirestoreService = {
         const data = verificationDoc.data();
         console.log("FirestoreService: Verification - data was saved:", {
           name: data.name,
-          proficiencyLevel: data.proficiencyLevel,
-          targetLanguage: data.targetLanguage
+          proficiencyLevel: data.proficiencyLevel
         });
         
         // Verify the proficiency level was saved in the correct CEFR format
@@ -159,7 +149,7 @@ const FirestoreService = {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         // Extract onboarding fields from top-level data
-        if (userData.name || userData.proficiencyLevel || userData.targetLanguage) {
+        if (userData.name || userData.proficiencyLevel) {
           console.log("FirestoreService: Found onboarding data at top level");
           
           // Normalize proficiency level
@@ -188,11 +178,7 @@ const FirestoreService = {
           // Construct onboarding data from top-level fields
           const onboardingData: UserOnboardingOptions = {
             name: userData.name || '',
-            proficiencyLevel: proficiencyLevel as any || 'a1',
-            targetLanguage: userData.targetLanguage || '',
-            learningGoals: userData.learningGoals || [],
-            preferredTopics: userData.preferredTopics || [],
-            dailyGoalMinutes: userData.dailyGoalMinutes || 0
+            proficiencyLevel: proficiencyLevel as any || 'a1'
           };
           
           console.log("FirestoreService: Converted top-level data:", onboardingData);
@@ -264,6 +250,61 @@ const FirestoreService = {
         .reverse();
     } catch (error) {
       console.error('Error getting chat history:', error);
+      throw error;
+    }
+  },
+
+  // Save a flashcard
+  saveFlashcard: async (userId: string, flashcard: Flashcard): Promise<string> => {
+    try {
+      console.log("FirestoreService: Saving flashcard for user:", userId);
+      
+      // Reference to the flashcards collection for this user
+      const flashcardsCollectionRef = collection(db, 'users', userId, 'flashcards');
+      
+      // Add timestamp to the flashcard
+      const flashcardWithTimestamp = {
+        ...flashcard,
+        createdAt: serverTimestamp()
+      };
+      
+      // Add to Firestore
+      const docRef = await addDoc(flashcardsCollectionRef, flashcardWithTimestamp);
+      console.log("Flashcard saved with ID:", docRef.id);
+      
+      return docRef.id;
+    } catch (error) {
+      console.error('Error saving flashcard:', error);
+      throw error;
+    }
+  },
+
+  // Get all flashcards for a user
+  getFlashcards: async (userId: string): Promise<Flashcard[]> => {
+    try {
+      console.log("FirestoreService: Getting flashcards for user:", userId);
+      
+      // Reference to the flashcards collection
+      const flashcardsCollectionRef = collection(db, 'users', userId, 'flashcards');
+      
+      // Query with most recent first
+      const q = query(
+        flashcardsCollectionRef,
+        orderBy('createdAt', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      // Convert to Flashcard objects
+      const flashcards: Flashcard[] = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Flashcard));
+      
+      console.log(`Retrieved ${flashcards.length} flashcards for user ${userId}`);
+      return flashcards;
+    } catch (error) {
+      console.error('Error getting flashcards:', error);
       throw error;
     }
   }

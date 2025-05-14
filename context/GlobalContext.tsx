@@ -111,14 +111,12 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const isComplete = !!(
       data.name && 
       data.name !== 'User' && // Explicit check that name isn't just the default
-      data.proficiencyLevel && 
-      data.targetLanguage
+      data.proficiencyLevel
     );
     
     console.log("Checking onboarding data complete:", {
       name: data.name,
       proficiencyLevel: data.proficiencyLevel,
-      targetLanguage: data.targetLanguage,
       isComplete
     });
     
@@ -170,11 +168,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Ensure we have all required fields before saving
       const dataToSave: UserOnboardingOptions = {
         name: nameToUse || 'User',
-        proficiencyLevel: validatedLevel as any, // Use validated level
-        targetLanguage: onboardingData.targetLanguage || 'French',
-        learningGoals: onboardingData.learningGoals || [],
-        preferredTopics: onboardingData.preferredTopics || [],
-        dailyGoalMinutes: onboardingData.dailyGoalMinutes || 10
+        proficiencyLevel: validatedLevel as any // Use validated level
       };
       
       console.log("Final data being saved to Firestore:", JSON.stringify(dataToSave, null, 2));

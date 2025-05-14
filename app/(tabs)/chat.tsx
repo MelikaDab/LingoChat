@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator, Alert, Animated } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator, Alert, Animated, Modal } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { generateResponse, transcribeAudio, synthesizeSpeech } from '../services/OpenAIService';
+import { generateResponse, transcribeAudio, synthesizeSpeech, translateWord } from '../services/OpenAIService';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
+import { useGlobalContext } from '../../context/GlobalContext';
+import FirestoreService, { Flashcard } from '../services/FirestoreService';
 
 // Define message type
 interface Message {
@@ -18,7 +20,15 @@ interface Message {
     audioUri?: string;
 }
 
+// Define flashcard type for local storage
+interface LocalFlashcard {
+    english: string;
+    french: string;
+    createdAt: Date;
+}
+
 export default function ChatScreen() {
+    const { userId, onboardingData } = useGlobalContext();
     const insets = useSafeAreaInsets();
     const tabBarHeight = useBottomTabBarHeight();
     const [message, setMessage] = useState('');
@@ -38,6 +48,17 @@ export default function ChatScreen() {
     
     // Animation for recording button pulse effect
     const pulseAnim = useRef(new Animated.Value(1)).current;
+    
+    // New states for word selection popup
+    const [selectedWord, setSelectedWord] = useState<string | null>(null);
+    const [showWordPopup, setShowWordPopup] = useState(false);
+    const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+    
+    // State for flashcard creation
+    const [isCreatingFlashcard, setIsCreatingFlashcard] = useState(false);
+    
+    // State for storing flashcards locally if Firebase fails
+    const [localFlashcards, setLocalFlashcards] = useState<LocalFlashcard[]>([]);
     
     // Setup pulse animation when recording
     useEffect(() => {
@@ -251,12 +272,24 @@ export default function ChatScreen() {
         return uri || '';
     };
 
+    const getUserProficiencyLevel = (): string => {
+        // Get the proficiency level from onboarding data
+        const level = onboardingData.proficiencyLevel;
+        
+        // Return the level or default to 'a1' if not set
+        return level ? level.toLowerCase() : 'a1';
+    };
+
     const sendTranscribedMessage = async (transcribedText: string) => {
         try {
             setIsLoading(true);
             
-            // Get response from OpenAI
-            const botResponse = await generateResponse(transcribedText);
+            // Get user's proficiency level
+            const proficiencyLevel = getUserProficiencyLevel();
+            console.log(`Using proficiency level: ${proficiencyLevel} for conversation`);
+            
+            // Get response from OpenAI with proficiency level
+            const botResponse = await generateResponse(transcribedText, proficiencyLevel);
             
             // Generate audio for bot response
             const audioUri = await synthesizeSpeech(botResponse);
@@ -300,8 +333,12 @@ export default function ChatScreen() {
             setIsLoading(true);
 
             try {
-                // Get response from OpenAI
-                const botResponse = await generateResponse(message);
+                // Get user's proficiency level
+                const proficiencyLevel = getUserProficiencyLevel();
+                console.log(`Using proficiency level: ${proficiencyLevel} for conversation`);
+                
+                // Get response from OpenAI with proficiency level
+                const botResponse = await generateResponse(message, proficiencyLevel);
                 
                 // Generate audio for bot response
                 const audioUri = await synthesizeSpeech(botResponse);
@@ -394,6 +431,137 @@ export default function ChatScreen() {
         }
     };
 
+    const handleWordPress = (word: string, event: any) => {
+        // Remove punctuation from the word
+        const cleanWord = word.replace(/[.,!?;:'"()]/g, '').trim();
+        
+        // Only show popup if the word is not empty after cleaning
+        if (cleanWord.length > 0) {
+            setSelectedWord(cleanWord);
+            setShowWordPopup(true);
+        }
+    };
+    
+    const handleAddFlashcard = async () => {
+        if (!selectedWord) {
+            setShowWordPopup(false);
+            return;
+        }
+        
+        // User must be logged in to save flashcards
+        if (!userId) {
+            Alert.alert('Error', 'You must be logged in to save flashcards.');
+            setShowWordPopup(false);
+            setSelectedWord(null);
+            return;
+        }
+        
+        try {
+            setIsCreatingFlashcard(true);
+            
+            // Translate the word using OpenAI
+            const translation = await translateWord(selectedWord);
+            
+            console.log('Word translation:', translation);
+            
+            // Create flashcard object
+            const flashcard: Flashcard = {
+                english: translation.english,
+                french: translation.french
+            };
+            
+            try {
+                // Try to save to Firebase
+                await FirestoreService.saveFlashcard(userId, flashcard);
+                
+                // Show success message
+                Alert.alert(
+                    'Flashcard Added!', 
+                    `Added "${translation.english} ↔ ${translation.french}" to your flashcards.`
+                );
+            } catch (firebaseError) {
+                console.error('Error saving flashcard to Firebase:', firebaseError);
+                
+                // Firebase permission error - save locally instead
+                const localFlashcard: LocalFlashcard = {
+                    english: translation.english,
+                    french: translation.french,
+                    createdAt: new Date()
+                };
+                
+                // Add to local state
+                setLocalFlashcards(prev => [localFlashcard, ...prev]);
+                
+                // Store in localStorage if available
+                try {
+                    const existingCards = localStorage.getItem('lingochat_flashcards');
+                    const cards = existingCards ? JSON.parse(existingCards) : [];
+                    cards.unshift(localFlashcard);
+                    localStorage.setItem('lingochat_flashcards', JSON.stringify(cards));
+                } catch (e) {
+                    console.log("Error saving to localStorage:", e);
+                }
+                
+                // Show a modified success message
+                Alert.alert(
+                    'Flashcard Added Locally!', 
+                    `Added "${translation.english} ↔ ${translation.french}" to your local flashcards. Please update your Firebase permissions to save cards online.`
+                );
+            }
+        } catch (error) {
+            console.error('Error creating flashcard:', error);
+            Alert.alert(
+                'Error', 
+                'Failed to create flashcard. Please try again.'
+            );
+        } finally {
+            setIsCreatingFlashcard(false);
+            setShowWordPopup(false);
+            setSelectedWord(null);
+        }
+    };
+    
+    const handleCancelFlashcard = () => {
+        setShowWordPopup(false);
+        setSelectedWord(null);
+    };
+    
+    // Function to render individual words as touchable components
+    const renderWords = (text: string, isUserMessage: boolean) => {
+        // Split text into words with spaces and punctuation preserved
+        const wordPattern = /(\S+)(\s*)/g;
+        const matches = [...text.matchAll(wordPattern)];
+        
+        return (
+            <View style={styles.textContainer}>
+                <Text style={[
+                    styles.messageText,
+                    isUserMessage && styles.userMessageText
+                ]}>
+                    {matches.map((match, index) => {
+                        const word = match[1]; // The word
+                        const space = match[2] || ''; // The space after the word
+                        
+                        return (
+                            <React.Fragment key={index}>
+                                <Text 
+                                    onPress={(event) => handleWordPress(word, event)}
+                                    style={[
+                                        styles.wordText,
+                                        isUserMessage && styles.userWordText
+                                    ]}
+                                >
+                                    {word}
+                                </Text>
+                                <Text>{space}</Text>
+                            </React.Fragment>
+                        );
+                    })}
+                </Text>
+            </View>
+        );
+    };
+
     const renderMessage = ({ item }: { item: Message }) => (
         <View style={[
             styles.messageBubble,
@@ -408,12 +576,7 @@ export default function ChatScreen() {
                 styles.messageContent,
                 item.sender === 'user' ? styles.userMessageContent : styles.botMessageContent
             ]}>
-                <View style={styles.textContainer}>
-                    <Text style={[
-                        styles.messageText,
-                        item.sender === 'user' && styles.userMessageText
-                    ]}>{item.text}</Text>
-                </View>
+                {renderWords(item.text, item.sender === 'user')}
                 
                 {item.hasAudio && item.audioUri && (
                     <View style={styles.audioButtonContainer}>
@@ -536,6 +699,50 @@ export default function ChatScreen() {
                     </View>
                 </KeyboardAvoidingView>
             </View>
+
+            {/* Word Selection Popup */}
+            <Modal
+                visible={showWordPopup}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={handleCancelFlashcard}
+            >
+                <TouchableOpacity 
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={handleCancelFlashcard}
+                    disabled={isCreatingFlashcard}
+                >
+                    <View style={styles.popupContainer}>
+                        <Text style={styles.popupTitle}>
+                            Add to Flashcards?
+                        </Text>
+                        <Text style={styles.popupText}>
+                            Do you want to add "{selectedWord}" as a flashcard?
+                        </Text>
+                        <View style={styles.popupButtons}>
+                            <TouchableOpacity 
+                                style={[styles.popupButton, styles.popupButtonCancel]}
+                                onPress={handleCancelFlashcard}
+                                disabled={isCreatingFlashcard}
+                            >
+                                <Text style={styles.popupButtonText}>No</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.popupButton, styles.popupButtonConfirm]}
+                                onPress={handleAddFlashcard}
+                                disabled={isCreatingFlashcard}
+                            >
+                                {isCreatingFlashcard ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Text style={[styles.popupButtonText, styles.popupButtonTextConfirm]}>Yes</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </LinearGradient>
     );
 }
@@ -698,5 +905,69 @@ const styles = StyleSheet.create({
     },
     disabledSendButton: {
         backgroundColor: '#A7C7FF',
+    },
+    wordText: {
+        fontSize: 16,
+        color: '#333',
+    },
+    userWordText: {
+        color: 'white',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    popupContainer: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 20,
+        width: '80%',
+        maxWidth: 400,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    popupTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        textAlign: 'center',
+    },
+    popupText: {
+        fontSize: 16,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    popupButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    popupButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        marginHorizontal: 5,
+        alignItems: 'center',
+    },
+    popupButtonConfirm: {
+        backgroundColor: '#3B82F6',
+    },
+    popupButtonCancel: {
+        backgroundColor: '#f1f5f9',
+    },
+    popupButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+    },
+    popupButtonTextConfirm: {
+        color: 'white',
     },
 });

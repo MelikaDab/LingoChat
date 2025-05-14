@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useGlobalContext } from '../../context/GlobalContext';
+import FirestoreService from '../../app/services/FirestoreService';
 
 // Add a type definition for Firebase user data
 interface FirebaseUserData {
@@ -15,11 +16,12 @@ interface FirebaseUserData {
 }
 
 export default function EditProfileScreen() {
-    const { onboardingData } = useGlobalContext();
+    const { onboardingData, userId, setOnboardingData } = useGlobalContext();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('kylan02@gmail.com'); // Default email
     const [photoURL, setPhotoURL] = useState<string | null>(null);
     const [initials, setInitials] = useState('KO'); // Default initials
+    const [isLoading, setIsLoading] = useState(false);
 
     const router = useRouter();
 
@@ -68,10 +70,47 @@ export default function EditProfileScreen() {
         }
     }, [onboardingData]);
 
-    const handleSave = () => {
-        // Save the profile information to Firebase
-        Alert.alert("Success", "Profile updated successfully");
-        router.back();
+    const handleSave = async () => {
+        try {
+            // Check if name has changed
+            if (!name) {
+                Alert.alert('Error', 'Name cannot be empty');
+                return;
+            }
+            
+            // Make sure user is logged in
+            if (!userId) {
+                Alert.alert('Error', 'You must be logged in to update your profile');
+                return;
+            }
+            
+            setIsLoading(true);
+            
+            // Create updated data object
+            const updatedData = {
+                name: name,
+                proficiencyLevel: onboardingData.proficiencyLevel || 'a1'
+            };
+            
+            console.log("Saving updated profile:", updatedData);
+            
+            // Save to Firebase
+            await FirestoreService.saveUserOnboarding(userId, updatedData);
+            
+            // Update context
+            setOnboardingData({
+                ...onboardingData,
+                name: name
+            });
+            
+            Alert.alert("Success", "Profile updated successfully");
+            router.back();
+        } catch (error) {
+            console.error("Error saving profile:", error);
+            Alert.alert("Error", "Failed to update profile. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -132,8 +171,16 @@ export default function EditProfileScreen() {
             </ScrollView>
 
             <View style={styles.bottomContainer}>
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                <TouchableOpacity 
+                    style={styles.saveButton} 
+                    onPress={handleSave}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                        <Text style={styles.saveButtonText}>Save Changes</Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </SafeAreaView>

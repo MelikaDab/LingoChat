@@ -91,11 +91,7 @@ export default function LevelPage() {
             // Ensure all required fields are set
             const updatedData: UserOnboardingOptions = {
                 name: userName,
-                proficiencyLevel: cefrLevel, // Use the mapped CEFR level
-                targetLanguage: onboardingData.targetLanguage || 'French',
-                learningGoals: onboardingData.learningGoals || [],
-                preferredTopics: onboardingData.preferredTopics || [],
-                dailyGoalMinutes: onboardingData.dailyGoalMinutes || 10
+                proficiencyLevel: cefrLevel // Use the mapped CEFR level
             };
             
             console.log("Complete onboarding data to save:", updatedData);
@@ -129,8 +125,7 @@ export default function LevelPage() {
                     const isComplete = !!(
                         refreshedData.name && 
                         refreshedData.name !== 'User' && 
-                        refreshedData.proficiencyLevel && 
-                        refreshedData.targetLanguage
+                        refreshedData.proficiencyLevel
                     );
                     console.log("Onboarding complete check:", isComplete);
                 }

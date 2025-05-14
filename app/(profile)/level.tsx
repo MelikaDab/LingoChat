@@ -80,11 +80,7 @@ export default function LearningLevelScreen() {
             // Create a complete user onboarding options object
             const updatedData: UserOnboardingOptions = {
                 name: onboardingData.name || 'User',
-                proficiencyLevel: selectedLevel, // This is already a valid CEFR level code
-                targetLanguage: onboardingData.targetLanguage || 'French',
-                learningGoals: onboardingData.learningGoals || [],
-                preferredTopics: onboardingData.preferredTopics || [],
-                dailyGoalMinutes: onboardingData.dailyGoalMinutes || 10
+                proficiencyLevel: selectedLevel // This is already a valid CEFR level code
             };
             
             console.log("Profile level.tsx: Updated data to save:", JSON.stringify(updatedData, null, 2));

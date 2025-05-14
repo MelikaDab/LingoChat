@@ -1,11 +1,14 @@
-import React, { useState } from "react";
-import { Text, View, FlatList, TouchableOpacity, Image, StyleSheet } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { Text, View, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import FlashCardDeckList from "@/components/FlashCardDeckList";
 import FlashCardDeck from "@/components/FlashCardDeck";
+import { useGlobalContext } from "../../context/GlobalContext";
+import FirestoreService, { Flashcard } from "../services/FirestoreService";
 
 interface FlashCardDeckData {
   id: string;
@@ -61,8 +64,99 @@ const recommendedFlashcards: FlashCardDeckData[] = [
 
 const Home = () => {
   const [selectedDeck, setSelectedDeck] = useState<FlashCardDeckData | null>(null);
+  const [myFlashcards, setMyFlashcards] = useState<Flashcard[]>([]);
+  const [isLoadingFlashcards, setIsLoadingFlashcards] = useState(false);
+  const [localFlashcards, setLocalFlashcards] = useState<any[]>([]);
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const { userId, isLoggedIn } = useGlobalContext();
+
+  // Function to load flashcards
+  const loadFlashcards = useCallback(async () => {
+    console.log("Loading flashcards on tab focus");
+    setIsLoadingFlashcards(true);
+    
+    try {
+      // Check for locally stored flashcards
+      try {
+        const storedCards = localStorage.getItem('lingochat_flashcards');
+        if (storedCards) {
+          const parsedCards = JSON.parse(storedCards);
+          setLocalFlashcards(parsedCards);
+          console.log("Loaded local flashcards:", parsedCards.length);
+        }
+      } catch (e) {
+        console.log("Error loading from localStorage:", e);
+      }
+      
+      // If user is logged in, try to fetch from Firebase
+      if (isLoggedIn && userId) {
+        const firebaseCards = await FirestoreService.getFlashcards(userId);
+        setMyFlashcards(firebaseCards);
+        console.log("Loaded Firebase flashcards:", firebaseCards.length);
+      }
+    } catch (error) {
+      console.error("Error loading flashcards:", error);
+      
+      // Show error only if Firebase load fails but we're logged in
+      if (isLoggedIn && userId) {
+        Alert.alert(
+          "Error", 
+          "Failed to load your flashcards. Check your connection and try again."
+        );
+      }
+    } finally {
+      setIsLoadingFlashcards(false);
+    }
+  }, [userId, isLoggedIn]);
+  
+  // Refresh flashcards when the tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadFlashcards();
+    }, [loadFlashcards])
+  );
+  
+  // Initial load
+  useEffect(() => {
+    loadFlashcards();
+  }, [loadFlashcards]);
+  
+  // Function to prepare flashcards for the deck component
+  const prepareFlashcardDeck = () => {
+    // Prefer Firebase flashcards, fall back to local if empty
+    const cards = myFlashcards.length > 0 
+      ? myFlashcards.map(card => ({ question: card.english, answer: card.french }))
+      : localFlashcards.map(card => ({ question: card.english, answer: card.french }));
+    
+    // Create a deck for review
+    const reviewDeck: FlashCardDeckData = {
+      id: "my-flashcards",
+      title: "My Flashcards",
+      words: cards.length,
+      cards: cards
+    };
+    
+    return reviewDeck;
+  };
+  
+  // Count of available cards for review
+  const totalFlashcards = myFlashcards.length > 0 ? myFlashcards.length : localFlashcards.length;
+  const hasFlashcards = totalFlashcards > 0;
+  
+  // Handle review button press
+  const handleReviewPress = () => {
+    if (!hasFlashcards) {
+      Alert.alert(
+        "No Flashcards", 
+        "You haven't created any flashcards yet. Go to the chat and tap on words to create flashcards."
+      );
+      return;
+    }
+    
+    // Set the selected deck for review
+    setSelectedDeck(prepareFlashcardDeck());
+  };
 
   return (
     <LinearGradient
@@ -101,10 +195,10 @@ const Home = () => {
               </View>
             </View>
 
-            {/* Current Deck Section */}
+            {/* Current Deck Section - Now "Review my Flashcards" */}
             <View style={styles.currentDeckContainer}>
               <View style={styles.currentDeckHeader}>
-                <Text style={styles.currentDeckTitle}>Today's Deck</Text>
+                <Text style={styles.currentDeckTitle}>Review my Flashcards</Text>
                 <TouchableOpacity>
                   <MaterialIcons name="more-horiz" size={24} color="#666" />
                 </TouchableOpacity>
@@ -112,19 +206,43 @@ const Home = () => {
               
               <View style={styles.deckCardContainer}>
                 <View style={styles.deckInfoContainer}>
-                  <Text style={styles.deckTitle}>les couleurs</Text>
-                  <Text style={styles.deckProgress}>2/10 cards reviewed</Text>
-                  <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: "20%" }]} />
-                  </View>
+                  <Text style={styles.deckTitle}>My Flashcards</Text>
+                  {isLoadingFlashcards ? (
+                    <ActivityIndicator size="small" color="#3B82F6" style={{marginVertical: 10}} />
+                  ) : (
+                    <>
+                      <Text style={styles.deckProgress}>
+                        {hasFlashcards 
+                          ? `${totalFlashcards} cards available for review` 
+                          : "No flashcards created yet"}
+                      </Text>
+                      {hasFlashcards && (
+                        <View style={styles.progressBar}>
+                          <View style={[styles.progressFill, { width: "100%" }]} />
+                        </View>
+                      )}
+                    </>
+                  )}
                 </View>
                 
                 <TouchableOpacity 
-                  onPress={() => setSelectedDeck(recommendedFlashcards[0])} 
-                  style={styles.studyButton}
+                  onPress={handleReviewPress} 
+                  style={[
+                    styles.studyButton,
+                    !hasFlashcards && styles.disabledButton
+                  ]}
+                  disabled={isLoadingFlashcards || !hasFlashcards}
                 >
-                  <Text style={styles.studyButtonText}>Continue</Text>
-                  <MaterialIcons name="arrow-forward" size={18} color="#fff" />
+                  {isLoadingFlashcards ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.studyButtonText}>
+                        {hasFlashcards ? 'Review Now' : 'No Cards'}
+                      </Text>
+                      {hasFlashcards && <MaterialIcons name="arrow-forward" size={18} color="#fff" />}
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -415,6 +533,10 @@ const styles = StyleSheet.create({
   practiceSubtitle: {
     fontSize: 14,
     color: '#666',
+  },
+  disabledButton: {
+    backgroundColor: '#A7C7FF',
+    opacity: 0.7,
   },
 });
 
