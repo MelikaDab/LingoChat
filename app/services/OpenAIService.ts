@@ -229,10 +229,10 @@ export const synthesizeSpeech = async (text: string): Promise<string> => {
     }
 };
 
-// Translate a word from English to French or French to English
-export async function translateWord(word: string): Promise<{ english: string; french: string }> {
+// Translate a word or phrase from English to French or French to English
+export async function translateWord(wordOrPhrase: string): Promise<{ english: string; french: string }> {
   try {
-    console.log(`Translating word: ${word}`);
+    console.log(`Translating word/phrase: ${wordOrPhrase}`);
     
     // Use the same API_KEY that's defined at the top of the file
     if (!API_KEY) {
@@ -246,20 +246,34 @@ export async function translateWord(word: string): Promise<{ english: string; fr
       dangerouslyAllowBrowser: true
     });
     
+    // Enhanced prompt for better phrase translation
+    const isPhrase = wordOrPhrase.trim().includes(' ');
+    const contentType = isPhrase ? 'phrase' : 'word';
+    
     // Prompt OpenAI to translate and detect the language
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
-          content: "You are a helpful translation assistant. Detect if the word is English or French, and provide the translation in the other language. Return ONLY a JSON object with 'english' and 'french' keys. No additional text, commentary or explanation."
+          content: `You are a helpful translation assistant. Detect if the ${contentType} is English or French, and provide the translation in the other language. 
+          
+          For phrases, maintain the meaning and context. For single words, provide the most appropriate translation.
+          
+          Return ONLY a JSON object with 'english' and 'french' keys containing the translated ${contentType}. 
+          Do not include any additional text, commentary, or explanation.
+          
+          Examples:
+          - Input: "hello" → {"english": "hello", "french": "bonjour"}
+          - Input: "good morning" → {"english": "good morning", "french": "bonjour"}
+          - Input: "au revoir" → {"english": "goodbye", "french": "au revoir"}`
         },
         {
           role: "user",
-          content: `Translate this word: ${word}`
+          content: `Translate this ${contentType}: ${wordOrPhrase}`
         }
       ],
-      temperature: 0.3,
+      temperature: 0.2, // Lower temperature for more consistent translations
       max_tokens: 150,
       response_format: { type: "json_object" }
     });
@@ -287,7 +301,7 @@ export async function translateWord(word: string): Promise<{ english: string; fr
       throw new Error("Failed to parse translation response");
     }
   } catch (error) {
-    console.error('Error translating word:', error);
+    console.error('Error translating word/phrase:', error);
     throw error;
   }
 } 

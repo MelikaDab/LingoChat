@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator, Alert, Animated, Modal } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator, Alert, Animated, Modal, PanResponder } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -49,10 +49,17 @@ export default function ChatScreen() {
     // Animation for recording button pulse effect
     const pulseAnim = useRef(new Animated.Value(1)).current;
     
-    // New states for word selection popup
-    const [selectedWord, setSelectedWord] = useState<string | null>(null);
+    // Enhanced states for multi-word selection with simple web approach
+    const [selectedWords, setSelectedWords] = useState<string[]>([]);
     const [showWordPopup, setShowWordPopup] = useState(false);
     const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+    const [isSelecting, setIsSelecting] = useState(false);
+    const [selectionStartIndex, setSelectionStartIndex] = useState<number | null>(null);
+    const [selectionEndIndex, setSelectionEndIndex] = useState<number | null>(null);
+    const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStartWord, setDragStartWord] = useState<number | null>(null);
+    const [dragCurrentWord, setDragCurrentWord] = useState<number | null>(null);
     
     // State for flashcard creation
     const [isCreatingFlashcard, setIsCreatingFlashcard] = useState(false);
@@ -91,7 +98,7 @@ export default function ChatScreen() {
         };
     }, [isRecording, pulseAnim]);
 
-    // Set up keyboard listeners
+    // Set up keyboard listeners and web-specific styles
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener(
             'keyboardDidShow',
@@ -105,6 +112,48 @@ export default function ChatScreen() {
                 setKeyboardVisible(false);
             }
         );
+
+        // Apply web-specific CSS to disable text selection
+        if (Platform.OS === 'web') {
+            const style = document.createElement('style');
+            style.textContent = `
+                .chat-text-container, .chat-text-container * {
+                    -webkit-user-select: none !important;
+                    -moz-user-select: none !important;
+                    -ms-user-select: none !important;
+                    user-select: none !important;
+                    -webkit-touch-callout: none !important;
+                    -webkit-tap-highlight-color: transparent !important;
+                    cursor: pointer !important;
+                }
+                
+                /* Prevent text selection on the entire app body when dragging */
+                body {
+                    -webkit-user-select: none !important;
+                    -moz-user-select: none !important;
+                    -ms-user-select: none !important;
+                    user-select: none !important;
+                }
+                
+                /* Allow text selection for input fields */
+                input, textarea {
+                    -webkit-user-select: text !important;
+                    -moz-user-select: text !important;
+                    -ms-user-select: text !important;
+                    user-select: text !important;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            return () => {
+                document.head.removeChild(style);
+                keyboardDidShowListener.remove();
+                keyboardDidHideListener.remove();
+                if (sound) {
+                    sound.unloadAsync();
+                }
+            };
+        }
 
         // Clean up listeners
         return () => {
@@ -431,19 +480,70 @@ export default function ChatScreen() {
         }
     };
 
-    const handleWordPress = (word: string, event: any) => {
-        // Remove punctuation from the word
-        const cleanWord = word.replace(/[.,!?;:'"()]/g, '').trim();
-        
-        // Only show popup if the word is not empty after cleaning
-        if (cleanWord.length > 0) {
-            setSelectedWord(cleanWord);
+    // Helper function to clean word of punctuation
+    const cleanWord = (word: string): string => {
+        return word.replace(/[.,!?;:'"()]/g, '').trim();
+    };
+    
+    // Simple web-specific selection handlers
+    const handleWordMouseDown = (wordIndex: number, messageId: string, words: string[]) => {
+        console.log('Mouse down on word:', wordIndex, words[wordIndex]);
+        setIsDragging(true);
+        setCurrentMessageId(messageId);
+        setDragStartWord(wordIndex);
+        setDragCurrentWord(wordIndex);
+        updateSelection(wordIndex, wordIndex, words);
+    };
+    
+    const handleWordMouseEnter = (wordIndex: number, messageId: string, words: string[]) => {
+        if (isDragging && currentMessageId === messageId && dragStartWord !== null) {
+            console.log('Mouse entered word during drag:', wordIndex, words[wordIndex]);
+            setDragCurrentWord(wordIndex);
+            updateSelection(dragStartWord, wordIndex, words);
+        }
+    };
+    
+    const handleWordMouseUp = (messageId: string, words: string[]) => {
+        console.log('Mouse up, finishing selection');
+        if (isDragging && selectedWords.length > 0) {
             setShowWordPopup(true);
+        }
+        setIsDragging(false);
+    };
+    
+    const updateSelection = (startIndex: number, endIndex: number, words: string[]) => {
+        const start = Math.min(startIndex, endIndex);
+        const end = Math.max(startIndex, endIndex);
+        
+        setSelectionStartIndex(start);
+        setSelectionEndIndex(end);
+        
+        const selectedWordsRange = words.slice(start, end + 1)
+            .map(word => cleanWord(word))
+            .filter(word => word.length > 0);
+        
+        setSelectedWords(selectedWordsRange);
+        console.log('Updated selection:', selectedWordsRange);
+    };
+    
+    // Dummy function for layout (not needed for simple approach)
+    const onWordLayout = () => {};
+
+    const handleWordPress = (word: string, wordIndex: number, messageId: string, words: string[]) => {
+        // Handle single word selection (tap without drag)
+        if (!isDragging) {
+            const cleanedWord = cleanWord(word);
+            
+            if (cleanedWord.length > 0) {
+                setSelectedWords([cleanedWord]);
+                setCurrentMessageId(messageId);
+                setShowWordPopup(true);
+            }
         }
     };
     
     const handleAddFlashcard = async () => {
-        if (!selectedWord) {
+        if (selectedWords.length === 0) {
             setShowWordPopup(false);
             return;
         }
@@ -452,17 +552,20 @@ export default function ChatScreen() {
         if (!userId) {
             Alert.alert('Error', 'You must be logged in to save flashcards.');
             setShowWordPopup(false);
-            setSelectedWord(null);
+            setSelectedWords([]);
             return;
         }
         
         try {
             setIsCreatingFlashcard(true);
             
-            // Translate the word using OpenAI
-            const translation = await translateWord(selectedWord);
+            // Join selected words into a phrase
+            const phrase = selectedWords.join(' ');
             
-            console.log('Word translation:', translation);
+            // Translate the phrase using OpenAI
+            const translation = await translateWord(phrase);
+            
+            console.log('Phrase translation:', translation);
             
             // Create flashcard object
             const flashcard: Flashcard = {
@@ -517,49 +620,141 @@ export default function ChatScreen() {
         } finally {
             setIsCreatingFlashcard(false);
             setShowWordPopup(false);
-            setSelectedWord(null);
+            setSelectedWords([]);
+            setCurrentMessageId(null);
+            setSelectionStartIndex(null);
+            setSelectionEndIndex(null);
+            setIsDragging(false);
+            setDragStartWord(null);
+            setDragCurrentWord(null);
         }
     };
     
     const handleCancelFlashcard = () => {
         setShowWordPopup(false);
-        setSelectedWord(null);
+        setSelectedWords([]);
+        setCurrentMessageId(null);
+        setSelectionStartIndex(null);
+        setSelectionEndIndex(null);
+        setIsDragging(false);
+        setDragStartWord(null);
+        setDragCurrentWord(null);
     };
     
-    // Function to render individual words as touchable components
-    const renderWords = (text: string, isUserMessage: boolean) => {
+    // Function to check if a word is currently selected
+    const isWordSelected = (wordIndex: number, messageId: string): boolean => {
+        if (currentMessageId !== messageId || selectionStartIndex === null) {
+            return false;
+        }
+        
+        if (selectionEndIndex === null) {
+            return wordIndex === selectionStartIndex;
+        }
+        
+        const start = Math.min(selectionStartIndex, selectionEndIndex);
+        const end = Math.max(selectionStartIndex, selectionEndIndex);
+        return wordIndex >= start && wordIndex <= end;
+    };
+    
+    // Function to render individual words as touchable components with selection support
+    const renderWords = (text: string, isUserMessage: boolean, messageId: string) => {
         // Split text into words with spaces and punctuation preserved
         const wordPattern = /(\S+)(\s*)/g;
         const matches = [...text.matchAll(wordPattern)];
+        const words = matches.map(match => match[1]);
         
-        return (
-            <View style={styles.textContainer}>
-                <Text style={[
-                    styles.messageText,
-                    isUserMessage && styles.userMessageText
-                ]}>
+        if (Platform.OS === 'web') {
+            // For web, use simple mouse events for reliable selection
+            return (
+                <View 
+                    style={[styles.textContainer, styles.webWordContainer]}
+                    {...(Platform.OS === 'web' ? { 
+                        onMouseUp: () => handleWordMouseUp(messageId, words) 
+                    } as any : {})}
+                >
                     {matches.map((match, index) => {
-                        const word = match[1]; // The word
-                        const space = match[2] || ''; // The space after the word
+                        const word = match[1];
+                        const space = match[2] || '';
+                        const isSelected = isWordSelected(index, messageId);
                         
                         return (
-                            <React.Fragment key={index}>
-                                <Text 
-                                    onPress={(event) => handleWordPress(word, event)}
+                            <View key={index} style={styles.webWordRow}>
+                                <TouchableOpacity
                                     style={[
-                                        styles.wordText,
-                                        isUserMessage && styles.userWordText
+                                        styles.webWordTouchable,
+                                        isSelected && styles.selectedWordTouchable,
+                                        isSelected && isUserMessage && styles.selectedUserWordTouchable
                                     ]}
+                                    {...(Platform.OS === 'web' ? {
+                                        onMouseDown: () => handleWordMouseDown(index, messageId, words),
+                                        onMouseEnter: () => handleWordMouseEnter(index, messageId, words)
+                                    } as any : {})}
+                                    onPress={() => handleWordPress(word, index, messageId, words)}
+                                    activeOpacity={1}
                                 >
-                                    {word}
-                                </Text>
-                                <Text>{space}</Text>
-                            </React.Fragment>
+                                    <Text 
+                                        style={[
+                                            styles.wordText,
+                                            isUserMessage && styles.userWordText
+                                        ]}
+                                        selectable={false}
+                                    >
+                                        {word}
+                                    </Text>
+                                </TouchableOpacity>
+                                {space && (
+                                    <Text 
+                                        style={[
+                                            styles.wordText,
+                                            isUserMessage && styles.userWordText
+                                        ]}
+                                        selectable={false}
+                                    >
+                                        {space}
+                                    </Text>
+                                )}
+                            </View>
                         );
                     })}
-                </Text>
-            </View>
-        );
+                </View>
+            );
+        } else {
+            // For native platforms, use the original approach
+            return (
+                <View style={styles.textContainer}>
+                    <Text style={[
+                        styles.messageText,
+                        isUserMessage && styles.userMessageText
+                    ]}>
+                        {matches.map((match, index) => {
+                            const word = match[1]; // The word
+                            const space = match[2] || ''; // The space after the word
+                            const isSelected = isWordSelected(index, messageId);
+                            
+                            return (
+                                <React.Fragment key={index}>
+                                    <Text 
+                                        onPress={() => handleWordPress(word, index, messageId, words)}
+                                        style={[
+                                            styles.wordText,
+                                            isUserMessage && styles.userWordText,
+                                            isSelected && styles.selectedWord,
+                                            isSelected && isUserMessage && styles.selectedUserWord
+                                        ]}
+                                        suppressHighlighting={true}
+                                    >
+                                        {word}
+                                    </Text>
+                                    <Text suppressHighlighting={true}>
+                                        {space}
+                                    </Text>
+                                </React.Fragment>
+                            );
+                        })}
+                    </Text>
+                </View>
+            );
+        }
     };
 
     const renderMessage = ({ item }: { item: Message }) => (
@@ -576,7 +771,7 @@ export default function ChatScreen() {
                 styles.messageContent,
                 item.sender === 'user' ? styles.userMessageContent : styles.botMessageContent
             ]}>
-                {renderWords(item.text, item.sender === 'user')}
+                {renderWords(item.text, item.sender === 'user', item.id)}
                 
                 {item.hasAudio && item.audioUri && (
                     <View style={styles.audioButtonContainer}>
@@ -628,6 +823,18 @@ export default function ChatScreen() {
                     style={styles.messageList}
                     contentContainerStyle={styles.messageListContent}
                     inverted={false}
+                    ListEmptyComponent={() => (
+                        <View style={styles.emptyContainer}>
+                            <MaterialIcons name="chat" size={64} color="#B3C5E8" />
+                            <Text style={styles.emptyTitle}>Start your French conversation!</Text>
+                            <Text style={styles.emptySubtitle}>
+                                Send a message or use voice recording to practice French with LingoBot.
+                            </Text>
+                            <Text style={styles.emptyTip}>
+                                💡 Tip: Tap any word or drag across multiple words in messages to add them as flashcards!
+                            </Text>
+                        </View>
+                    )}
                     // Auto-scroll to bottom on new messages
                     onContentSizeChange={() => {
                         if (messages.length > 0) {
@@ -700,7 +907,7 @@ export default function ChatScreen() {
                 </KeyboardAvoidingView>
             </View>
 
-            {/* Word Selection Popup */}
+            {/* Enhanced Word Selection Popup */}
             <Modal
                 visible={showWordPopup}
                 transparent={true}
@@ -718,7 +925,12 @@ export default function ChatScreen() {
                             Add to Flashcards?
                         </Text>
                         <Text style={styles.popupText}>
-                            Do you want to add "{selectedWord}" as a flashcard?
+                            Do you want to add "{selectedWords.join(' ')}" as a flashcard?
+                        </Text>
+                        <Text style={styles.popupHint}>
+                            {selectedWords.length === 1 
+                                ? 'Tip: You can drag across multiple words to select phrases!' 
+                                : `${selectedWords.length} words selected - Perfect for learning phrases!`}
                         </Text>
                         <View style={styles.popupButtons}>
                             <TouchableOpacity 
@@ -945,6 +1157,13 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         textAlign: 'center',
     },
+    popupHint: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 20,
+        textAlign: 'center',
+        fontStyle: 'italic',
+    },
     popupButtons: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -969,5 +1188,65 @@ const styles = StyleSheet.create({
     },
     popupButtonTextConfirm: {
         color: 'white',
+    },
+    selectedWord: {
+        backgroundColor: '#E8F0FF',
+        borderRadius: 3,
+        paddingHorizontal: 2,
+    },
+    selectedUserWord: {
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        color: '#3B82F6',
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 40,
+        paddingVertical: 60,
+    },
+    emptyTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#333',
+        marginTop: 20,
+        marginBottom: 10,
+        textAlign: 'center',
+    },
+    emptySubtitle: {
+        fontSize: 16,
+        color: '#666',
+        marginBottom: 20,
+        textAlign: 'center',
+        lineHeight: 24,
+    },
+    emptyTip: {
+        fontSize: 14,
+        color: '#3B82F6',
+        textAlign: 'center',
+        fontStyle: 'italic',
+        lineHeight: 20,
+    },
+    webWordContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'flex-start',
+    },
+    webWordRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    webWordTouchable: {
+        paddingVertical: 2,
+        paddingHorizontal: 1,
+        borderRadius: 3,
+    },
+    selectedWordTouchable: {
+        backgroundColor: '#E8F0FF',
+        borderRadius: 3,
+        paddingHorizontal: 2,
+    },
+    selectedUserWordTouchable: {
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
     },
 });
