@@ -57,30 +57,41 @@ export default function ProfileTab() {
             setUserLevel(formatLevel(onboardingData.proficiencyLevel));
             
             // Set display name
+            let userName = 'User';
             if (onboardingData.name && onboardingData.name !== 'User') {
-                setDisplayName(onboardingData.name);
+                userName = onboardingData.name;
+                setDisplayName(userName);
+            }
+            
+            // Generate initials from the actual name
+            if (userName !== 'User') {
+                setInitials(getInitials(userName));
+            } else {
+                // Fallback initials if no proper name is available
+                setInitials('U');
             }
             
             // Try to use Firebase data - check if onboardingData has extended properties
             const extendedData = onboardingData as any;
-            if (extendedData.photoURL) {
+            
+            // Only set photoUrl if it's a valid, non-empty string
+            if (extendedData.photoURL && extendedData.photoURL.trim() !== '') {
+                console.log('Setting photoUrl:', extendedData.photoURL);
                 setPhotoUrl(extendedData.photoURL);
+            } else {
+                console.log('No valid photoURL, using initials');
+                setPhotoUrl(null);
             }
             
             // Set email if available
             if (extendedData.email) {
                 setUserEmail(extendedData.email);
             }
-            
-            // Generate initials from name (for fallback)
-            if (displayName !== 'User') {
-                setInitials(getInitials(displayName));
-            }
         }
     }, [onboardingData]);
 
     // Get user initials for avatar
-    const [initials, setInitials] = useState('KO');
+    const [initials, setInitials] = useState('U');
     
     const getInitials = (name: string) => {
         return name
@@ -143,11 +154,15 @@ export default function ProfileTab() {
                 {/* Profile Card */}
                 <View style={styles.profileCard}>
                     <View style={styles.avatarContainer}>
-                        {photoUrl ? (
+                        {photoUrl && photoUrl.trim() !== '' ? (
                             <Image 
                                 source={{ uri: photoUrl }} 
                                 style={styles.avatarImage}
                                 resizeMode="cover"
+                                onError={(error) => {
+                                    console.log('Image failed to load:', error);
+                                    setPhotoUrl(null); // Fall back to initials if image fails
+                                }}
                             />
                         ) : (
                             <View style={styles.avatarPlaceholder}>
