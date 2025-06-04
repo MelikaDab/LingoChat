@@ -197,7 +197,7 @@ export default function LevelPage() {
                 {isLoading ? (
                     <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                    <Text style={styles.nextButtonText}>Next</Text>
+                <Text style={styles.nextButtonText}>Next</Text>
                 )}
             </TouchableOpacity>
         </View>

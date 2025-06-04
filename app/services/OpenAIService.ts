@@ -122,7 +122,7 @@ export const generateResponse = async (
         console.error('Error generating response:', error);
         throw error;
     }
-};
+}; 
 
 // Transcribe audio to text using OpenAI's Whisper API
 export const transcribeAudio = async (audioUri: string): Promise<string> => {

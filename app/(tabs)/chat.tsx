@@ -666,24 +666,24 @@ export default function ChatScreen() {
                         <Animated.View style={{
                             transform: [{ scale: pulseAnim }]
                         }}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.recordButton,
-                                    isRecording && styles.recordingButton
-                                ]}
-                                onPress={toggleRecording}
+                        <TouchableOpacity
+                            style={[
+                                styles.recordButton,
+                                isRecording && styles.recordingButton
+                            ]}
+                            onPress={toggleRecording}
                                 disabled={isLoading || isTranscribing}
-                            >
+                        >
                                 {isTranscribing ? (
                                     <ActivityIndicator size="small" color="#fff" />
                                 ) : (
-                                    <MaterialIcons
-                                        name={isRecording ? "stop" : "mic"}
-                                        size={24}
-                                        color="#fff"
-                                    />
+                            <MaterialIcons
+                                name={isRecording ? "stop" : "mic"}
+                                size={24}
+                                color="#fff"
+                            />
                                 )}
-                            </TouchableOpacity>
+                        </TouchableOpacity>
                         </Animated.View>
                         
                         <TouchableOpacity

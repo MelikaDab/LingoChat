@@ -119,7 +119,7 @@ export default function LearningLevelScreen() {
             }
             
             Alert.alert('Success', 'Your language level has been updated!');
-            router.back();
+        router.back();
         } catch (error) {
             console.error('Error saving level:', error);
             Alert.alert('Error', 'Failed to save your language level. Please try again.');

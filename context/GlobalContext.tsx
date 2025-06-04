@@ -16,6 +16,7 @@ interface GlobalContextProps {
   longestStreak: number;
   totalLoginDays: number;
   updateStreak: () => Promise<void>;
+  forceStreakUpdate: () => Promise<void>;
   isLoadingStreak: boolean;
   // Gems tracking
   gems: number;
@@ -37,6 +38,7 @@ const defaultContext: GlobalContextProps = {
   longestStreak: 0,
   totalLoginDays: 0,
   updateStreak: async () => {},
+  forceStreakUpdate: async () => {},
   isLoadingStreak: false,
   // Gems defaults
   gems: 0,
@@ -139,6 +141,38 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     } catch (error) {
       console.error('Error loading user streak data:', error);
+    }
+  };
+
+  // Force streak update
+  const forceStreakUpdate = async () => {
+    if (!userId) {
+      console.error('Cannot force update streak: No user is logged in');
+      return;
+    }
+
+    try {
+      setIsLoadingStreak(true);
+      console.log("Force updating user streak for:", userId);
+      
+      const streakResult = await FirestoreService.forceStreakUpdate(userId);
+      
+      // Update local state with new streak data
+      setCurrentStreak(streakResult.currentStreak);
+      setLongestStreak(streakResult.longestStreak);
+      
+      // Also refresh the total login days
+      const streakData = await FirestoreService.getUserStreak(userId);
+      if (streakData) {
+        setTotalLoginDays(streakData.totalLoginDays);
+      }
+      
+      console.log("Force streak update completed:", streakResult);
+    } catch (error) {
+      console.error('Error force updating user streak:', error);
+      throw error;
+    } finally {
+      setIsLoadingStreak(false);
     }
   };
 
@@ -360,6 +394,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         longestStreak,
         totalLoginDays,
         updateStreak,
+        forceStreakUpdate,
         isLoadingStreak,
         // Gems tracking
         gems,

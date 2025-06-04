@@ -104,7 +104,7 @@ export default function EditProfileScreen() {
             });
             
             Alert.alert("Success", "Profile updated successfully");
-            router.back();
+        router.back();
         } catch (error) {
             console.error("Error saving profile:", error);
             Alert.alert("Error", "Failed to update profile. Please try again.");
@@ -128,9 +128,9 @@ export default function EditProfileScreen() {
                                 resizeMode="cover"
                             />
                         ) : (
-                            <View style={styles.avatar}>
+                        <View style={styles.avatar}>
                                 <Text style={styles.avatarText}>{initials}</Text>
-                            </View>
+                        </View>
                         )}
                         <TouchableOpacity style={styles.editAvatarButton}>
                             <MaterialIcons name="camera-alt" size={24} color="white" />
@@ -179,7 +179,7 @@ export default function EditProfileScreen() {
                     {isLoading ? (
                         <ActivityIndicator color="#fff" size="small" />
                     ) : (
-                        <Text style={styles.saveButtonText}>Save Changes</Text>
+                    <Text style={styles.saveButtonText}>Save Changes</Text>
                     )}
                 </TouchableOpacity>
             </View>

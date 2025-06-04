@@ -330,9 +330,10 @@ const FirestoreService = {
       const userDocRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userDocRef);
       
-      // Get current date in YYYY-MM-DD format
-      const today = new Date().toISOString().split('T')[0];
-      console.log("FirestoreService: Today's date:", today);
+      // Get current date in YYYY-MM-DD format (local timezone)
+      const now = new Date();
+      const today = now.toLocaleDateString('en-CA'); // This gives us YYYY-MM-DD format
+      console.log("FirestoreService: Today's date (local):", today);
       
       let currentStreak = 1;
       let longestStreak = 1;
@@ -359,11 +360,11 @@ const FirestoreService = {
           return { currentStreak, longestStreak };
         }
         
-        // Calculate yesterday's date
+        // Calculate yesterday's date (local timezone)
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
-        console.log("FirestoreService: Yesterday's date:", yesterdayStr);
+        const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+        console.log("FirestoreService: Yesterday's date (local):", yesterdayStr);
         
         if (lastLoginDate === yesterdayStr) {
           // User logged in yesterday, continue streak
@@ -378,6 +379,10 @@ const FirestoreService = {
           // First time login
           currentStreak = 1;
           console.log("First time login, setting streak to 1");
+        } else {
+          // Edge case: last login is in the future somehow, treat as first login
+          console.log("Edge case: last login date is in future, resetting streak");
+          currentStreak = 1;
         }
         
         // Update longest streak if current is higher
@@ -423,6 +428,49 @@ const FirestoreService = {
       
     } catch (error) {
       console.error('Error updating user streak:', error);
+      throw error;
+    }
+  },
+
+  // Force streak update (for testing or manual correction)
+  forceStreakUpdate: async (userId: string): Promise<{ currentStreak: number; longestStreak: number }> => {
+    try {
+      console.log("FirestoreService: Force updating streak for user:", userId);
+      
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        let currentStreak = (userData.currentStreak || 0) + 1;
+        let longestStreak = userData.longestStreak || 0;
+        let totalLoginDays = (userData.totalLoginDays || 0) + 1;
+        
+        // Update longest streak if current is higher
+        if (currentStreak > longestStreak) {
+          longestStreak = currentStreak;
+        }
+        
+        const today = new Date().toLocaleDateString('en-CA');
+        
+        const updateData = {
+          currentStreak,
+          longestStreak,
+          lastLoginDate: today,
+          totalLoginDays,
+          updatedAt: serverTimestamp()
+        };
+        
+        await updateDoc(userDocRef, updateData);
+        console.log("Force updated streak data:", updateData);
+        
+        return { currentStreak, longestStreak };
+      } else {
+        console.log("User document doesn't exist for force update");
+        return { currentStreak: 0, longestStreak: 0 };
+      }
+    } catch (error) {
+      console.error('Error force updating streak:', error);
       throw error;
     }
   },
