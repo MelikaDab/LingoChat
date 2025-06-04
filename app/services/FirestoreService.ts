@@ -30,6 +30,15 @@ export interface UserProfile {
   // Onboarding data now directly on user profile
   name?: string;
   proficiencyLevel?: 'a1' | 'a2' | 'b1' | 'b2' | 'c1' | 'c2' | 'Beginner' | 'Intermediate' | 'Advanced';
+  // Streak tracking
+  currentStreak?: number;
+  longestStreak?: number;
+  lastLoginDate?: string; // Format: YYYY-MM-DD
+  totalLoginDays?: number;
+  // Gems tracking
+  gems?: number;
+  totalGemsEarned?: number;
+  lastGemEarned?: any; // timestamp
 }
 
 // Define flashcard interface
@@ -175,10 +184,14 @@ const FirestoreService = {
             console.log("FirestoreService: Normalized proficiency level:", proficiencyLevel);
           }
           
-          // Construct onboarding data from top-level fields
-          const onboardingData: UserOnboardingOptions = {
+          // Construct onboarding data from top-level fields with extended properties
+          const onboardingData: any = {
             name: userData.name || '',
-            proficiencyLevel: proficiencyLevel as any || 'a1'
+            proficiencyLevel: proficiencyLevel as any || 'a1',
+            // Include additional profile data
+            email: userData.email || '',
+            photoURL: userData.photoURL || '',
+            displayName: userData.displayName || userData.name || ''
           };
           
           console.log("FirestoreService: Converted top-level data:", onboardingData);
@@ -307,7 +320,279 @@ const FirestoreService = {
       console.error('Error getting flashcards:', error);
       throw error;
     }
-  }
+  },
+
+  // Update user streak based on login
+  updateUserStreak: async (userId: string): Promise<{ currentStreak: number; longestStreak: number }> => {
+    try {
+      console.log("FirestoreService: Updating user streak for user:", userId);
+      
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      
+      // Get current date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+      console.log("FirestoreService: Today's date:", today);
+      
+      let currentStreak = 1;
+      let longestStreak = 1;
+      let totalLoginDays = 1;
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const lastLoginDate = userData.lastLoginDate;
+        currentStreak = userData.currentStreak || 0;
+        longestStreak = userData.longestStreak || 0;
+        totalLoginDays = userData.totalLoginDays || 0;
+        
+        console.log("Current user data:", {
+          lastLoginDate,
+          currentStreak,
+          longestStreak,
+          totalLoginDays,
+          today
+        });
+        
+        // If user already logged in today, don't update streak
+        if (lastLoginDate === today) {
+          console.log("User already logged in today, no streak update needed");
+          return { currentStreak, longestStreak };
+        }
+        
+        // Calculate yesterday's date
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        console.log("FirestoreService: Yesterday's date:", yesterdayStr);
+        
+        if (lastLoginDate === yesterdayStr) {
+          // User logged in yesterday, continue streak
+          currentStreak += 1;
+          console.log("Continuing streak, new streak:", currentStreak);
+        } else if (lastLoginDate && lastLoginDate < yesterdayStr) {
+          // User missed a day, reset streak
+          console.log("Streak broken! Last login was:", lastLoginDate, "which is before yesterday:", yesterdayStr);
+          currentStreak = 1;
+          console.log("Streak broken, resetting to 1");
+        } else if (!lastLoginDate) {
+          // First time login
+          currentStreak = 1;
+          console.log("First time login, setting streak to 1");
+        }
+        
+        // Update longest streak if current is higher
+        if (currentStreak > longestStreak) {
+          longestStreak = currentStreak;
+          console.log("New longest streak record:", longestStreak);
+        }
+        
+        // Increment total login days (only if not logged in today)
+        totalLoginDays += 1;
+        console.log("Updated total login days:", totalLoginDays);
+      }
+      
+      // Update the user document
+      const updateData = {
+        currentStreak,
+        longestStreak,
+        lastLoginDate: today,
+        totalLoginDays,
+        updatedAt: serverTimestamp()
+      };
+      
+      console.log("FirestoreService: Updating user document with:", updateData);
+      
+      if (userDoc.exists()) {
+        await updateDoc(userDocRef, updateData);
+        console.log("Updated existing user streak data");
+      } else {
+        // Create new user document if it doesn't exist
+        await setDoc(userDocRef, {
+          uid: userId,
+          email: auth.currentUser?.email || '',
+          displayName: auth.currentUser?.displayName || '',
+          photoURL: auth.currentUser?.photoURL || '',
+          createdAt: serverTimestamp(),
+          ...updateData
+        });
+        console.log("Created new user with streak data");
+      }
+      
+      console.log("Streak updated successfully:", { currentStreak, longestStreak });
+      return { currentStreak, longestStreak };
+      
+    } catch (error) {
+      console.error('Error updating user streak:', error);
+      throw error;
+    }
+  },
+
+  // Get user streak information
+  getUserStreak: async (userId: string): Promise<{ currentStreak: number; longestStreak: number; totalLoginDays: number } | null> => {
+    try {
+      console.log("FirestoreService: Getting user streak for user:", userId);
+      
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const streakData = {
+          currentStreak: userData.currentStreak || 0,
+          longestStreak: userData.longestStreak || 0,
+          totalLoginDays: userData.totalLoginDays || 0
+        };
+        
+        console.log("Retrieved streak data:", streakData);
+        return streakData;
+      }
+      
+      console.log("User document does not exist, returning null");
+      return null;
+    } catch (error) {
+      console.error('Error getting user streak:', error);
+      throw error;
+    }
+  },
+
+  // Check if user has logged in today
+  hasLoggedInToday: async (userId: string): Promise<boolean> => {
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const lastLoginDate = userData.lastLoginDate;
+        const today = new Date().toISOString().split('T')[0];
+        
+        return lastLoginDate === today;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking if user logged in today:', error);
+      return false;
+    }
+  },
+
+  // Award gems to user
+  awardGems: async (userId: string, amount: number, reason: string = 'activity'): Promise<{ newTotal: number; gemsAwarded: number }> => {
+    try {
+      console.log(`FirestoreService: Awarding ${amount} gems to user ${userId} for ${reason}`);
+      
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      
+      let currentGems = 0;
+      let totalGemsEarned = 0;
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        currentGems = userData.gems || 0;
+        totalGemsEarned = userData.totalGemsEarned || 0;
+      }
+      
+      const newGemTotal = currentGems + amount;
+      const newTotalEarned = totalGemsEarned + amount;
+      
+      console.log(`Gems: ${currentGems} + ${amount} = ${newGemTotal}`);
+      
+      // Update user document with new gem amounts
+      const updateData = {
+        gems: newGemTotal,
+        totalGemsEarned: newTotalEarned,
+        lastGemEarned: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      if (userDoc.exists()) {
+        await updateDoc(userDocRef, updateData);
+      } else {
+        // Create user document if it doesn't exist
+        await setDoc(userDocRef, {
+          uid: userId,
+          email: auth.currentUser?.email || '',
+          displayName: auth.currentUser?.displayName || '',
+          photoURL: auth.currentUser?.photoURL || '',
+          createdAt: serverTimestamp(),
+          ...updateData
+        });
+      }
+      
+      // Log the gem transaction
+      await FirestoreService.logGemTransaction(userId, amount, reason, newGemTotal);
+      
+      console.log(`Gems awarded successfully! New total: ${newGemTotal}`);
+      return { newTotal: newGemTotal, gemsAwarded: amount };
+      
+    } catch (error) {
+      console.error('Error awarding gems:', error);
+      throw error;
+    }
+  },
+
+  // Log gem transaction for history
+  logGemTransaction: async (userId: string, amount: number, reason: string, newBalance: number): Promise<void> => {
+    try {
+      const transactionCollectionRef = collection(db, 'users', userId, 'gem_transactions');
+      await addDoc(transactionCollectionRef, {
+        amount,
+        reason,
+        newBalance,
+        timestamp: serverTimestamp(),
+        type: amount > 0 ? 'earned' : 'spent'
+      });
+      
+      console.log('Gem transaction logged successfully');
+    } catch (error) {
+      console.error('Error logging gem transaction:', error);
+      // Don't throw - this is just for logging
+    }
+  },
+
+  // Get user gems
+  getUserGems: async (userId: string): Promise<{ gems: number; totalGemsEarned: number } | null> => {
+    try {
+      console.log("FirestoreService: Getting user gems for user:", userId);
+      
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const gemData = {
+          gems: userData.gems || 0,
+          totalGemsEarned: userData.totalGemsEarned || 0
+        };
+        
+        console.log("Retrieved gem data:", gemData);
+        return gemData;
+      }
+      
+      console.log("User document does not exist, returning null");
+      return null;
+    } catch (error) {
+      console.error('Error getting user gems:', error);
+      throw error;
+    }
+  },
+
+  // Calculate gems for flashcard completion
+  calculateFlashcardGems: (cardCount: number, streak: number = 0): number => {
+    // Base gems: 5 per card reviewed
+    const baseGems = cardCount * 5;
+    
+    // Streak bonus: +1 gem per card for every 7 days of streak
+    const streakMultiplier = Math.floor(streak / 7);
+    const streakBonus = cardCount * streakMultiplier;
+    
+    // Minimum 5 gems, even for 1 card
+    const totalGems = Math.max(5, baseGems + streakBonus);
+    
+    console.log(`Flashcard gems calculation: ${cardCount} cards, ${streak} streak = ${totalGems} gems (base: ${baseGems}, bonus: ${streakBonus})`);
+    return totalGems;
+  },
 };
 
 export default FirestoreService; 

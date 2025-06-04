@@ -11,6 +11,17 @@ interface GlobalContextProps {
   isLoggedIn: boolean;
   isOnboardingComplete: boolean;
   checkOnboardingStatus: () => boolean;
+  // Streak tracking
+  currentStreak: number;
+  longestStreak: number;
+  totalLoginDays: number;
+  updateStreak: () => Promise<void>;
+  isLoadingStreak: boolean;
+  // Gems tracking
+  gems: number;
+  totalGemsEarned: number;
+  awardGems: (amount: number, reason?: string) => Promise<{ newTotal: number; gemsAwarded: number }>;
+  isLoadingGems: boolean;
 }
 
 const defaultContext: GlobalContextProps = {
@@ -21,6 +32,17 @@ const defaultContext: GlobalContextProps = {
   isLoggedIn: false,
   isOnboardingComplete: false,
   checkOnboardingStatus: () => false,
+  // Streak defaults
+  currentStreak: 0,
+  longestStreak: 0,
+  totalLoginDays: 0,
+  updateStreak: async () => {},
+  isLoadingStreak: false,
+  // Gems defaults
+  gems: 0,
+  totalGemsEarned: 0,
+  awardGems: async () => ({ newTotal: 0, gemsAwarded: 0 }),
+  isLoadingGems: false,
 };
 
 const GlobalContext = createContext<GlobalContextProps>(defaultContext);
@@ -32,6 +54,17 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean>(false);
+  
+  // Streak tracking state
+  const [currentStreak, setCurrentStreak] = useState<number>(0);
+  const [longestStreak, setLongestStreak] = useState<number>(0);
+  const [totalLoginDays, setTotalLoginDays] = useState<number>(0);
+  const [isLoadingStreak, setIsLoadingStreak] = useState<boolean>(false);
+
+  // Gems tracking state
+  const [gems, setGems] = useState<number>(0);
+  const [totalGemsEarned, setTotalGemsEarned] = useState<number>(0);
+  const [isLoadingGems, setIsLoadingGems] = useState<boolean>(false);
 
   // Monitor authentication state
   useEffect(() => {
@@ -42,22 +75,135 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         // Load user's onboarding data if they're logged in
         loadUserOnboarding(user.uid);
+        
+        // Update streak when user logs in
+        updateUserStreak(user.uid);
+        
+        // Load gems when user logs in
+        loadUserGems(user.uid);
       } else {
         setUserId(null);
         setIsLoggedIn(false);
         setOnboardingData({});
         setIsOnboardingComplete(false);
+        // Reset streak data when user logs out
+        setCurrentStreak(0);
+        setLongestStreak(0);
+        setTotalLoginDays(0);
+        // Reset gems data when user logs out
+        setGems(0);
+        setTotalGemsEarned(0);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
+  // Update user streak
+  const updateUserStreak = async (uid: string) => {
+    try {
+      setIsLoadingStreak(true);
+      console.log("Updating user streak for:", uid);
+      
+      const streakResult = await FirestoreService.updateUserStreak(uid);
+      
+      // Update local state with new streak data
+      setCurrentStreak(streakResult.currentStreak);
+      setLongestStreak(streakResult.longestStreak);
+      
+      // Also load the total login days
+      const streakData = await FirestoreService.getUserStreak(uid);
+      if (streakData) {
+        setTotalLoginDays(streakData.totalLoginDays);
+      }
+      
+      console.log("Streak updated:", streakResult);
+    } catch (error) {
+      console.error('Error updating user streak:', error);
+    } finally {
+      setIsLoadingStreak(false);
+    }
+  };
+
+  // Load user streak data
+  const loadUserStreak = async (uid: string) => {
+    try {
+      console.log("Loading user streak data for:", uid);
+      const streakData = await FirestoreService.getUserStreak(uid);
+      
+      if (streakData) {
+        setCurrentStreak(streakData.currentStreak);
+        setLongestStreak(streakData.longestStreak);
+        setTotalLoginDays(streakData.totalLoginDays);
+        console.log("Loaded streak data:", streakData);
+      }
+    } catch (error) {
+      console.error('Error loading user streak data:', error);
+    }
+  };
+
+  // Public function to manually update streak
+  const updateStreak = async () => {
+    if (userId) {
+      await updateUserStreak(userId);
+    }
+  };
+
+  // Load user gems
+  const loadUserGems = async (uid: string) => {
+    try {
+      console.log("Loading user gems for:", uid);
+      const gemData = await FirestoreService.getUserGems(uid);
+      
+      if (gemData) {
+        setGems(gemData.gems);
+        setTotalGemsEarned(gemData.totalGemsEarned);
+        console.log("Loaded gem data:", gemData);
+      }
+    } catch (error) {
+      console.error('Error loading user gems:', error);
+    }
+  };
+
+  // Award gems function
+  const awardGems = async (amount: number, reason: string = 'activity'): Promise<{ newTotal: number; gemsAwarded: number }> => {
+    if (!userId) {
+      console.error('Cannot award gems: No user is logged in');
+      return { newTotal: 0, gemsAwarded: 0 };
+    }
+
+    try {
+      setIsLoadingGems(true);
+      console.log(`Awarding ${amount} gems for ${reason}`);
+      
+      const result = await FirestoreService.awardGems(userId, amount, reason);
+      
+      // Update local state with new gem data
+      setGems(result.newTotal);
+      setTotalGemsEarned(prevTotal => prevTotal + amount);
+      
+      console.log("Gems awarded successfully:", result);
+      return result;
+      
+    } catch (error) {
+      console.error('Error awarding gems:', error);
+      throw error;
+    } finally {
+      setIsLoadingGems(false);
+    }
+  };
+
   // Load user onboarding data from Firestore
   const loadUserOnboarding = async (uid: string) => {
     try {
       console.log("Loading user onboarding data for:", uid);
       const data = await FirestoreService.getUserOnboarding(uid);
+      
+      // Also load streak data when loading onboarding data
+      await loadUserStreak(uid);
+      
+      // Also load gems data when loading onboarding data
+      await loadUserGems(uid);
       
       // If we have data from firestore
       if (data) {
@@ -209,6 +355,17 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isLoggedIn,
         isOnboardingComplete,
         checkOnboardingStatus,
+        // Streak tracking
+        currentStreak,
+        longestStreak,
+        totalLoginDays,
+        updateStreak,
+        isLoadingStreak,
+        // Gems tracking
+        gems,
+        totalGemsEarned,
+        awardGems,
+        isLoadingGems,
       }}
     >
       {children}

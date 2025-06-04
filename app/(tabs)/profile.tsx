@@ -33,7 +33,18 @@ export default function ProfileTab() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const tabBarHeight = useBottomTabBarHeight();
-    const { onboardingData, userId } = useGlobalContext();
+    const { 
+        onboardingData, 
+        userId,
+        currentStreak,
+        longestStreak,
+        totalLoginDays,
+        isLoadingStreak,
+        updateStreak,
+        gems,
+        isLoadingGems,
+        awardGems
+    } = useGlobalContext();
     const [userLevel, setUserLevel] = useState('A1');
     const [displayName, setDisplayName] = useState('User');
     const [userEmail, setUserEmail] = useState('kylan02@gmail.com');
@@ -50,14 +61,15 @@ export default function ProfileTab() {
                 setDisplayName(onboardingData.name);
             }
             
-            // Try to use Firebase data
-            if (onboardingData.photoURL) {
-                setPhotoUrl(onboardingData.photoURL);
+            // Try to use Firebase data - check if onboardingData has extended properties
+            const extendedData = onboardingData as any;
+            if (extendedData.photoURL) {
+                setPhotoUrl(extendedData.photoURL);
             }
             
             // Set email if available
-            if (onboardingData.email) {
-                setUserEmail(onboardingData.email);
+            if (extendedData.email) {
+                setUserEmail(extendedData.email);
             }
             
             // Generate initials from name (for fallback)
@@ -153,17 +165,63 @@ export default function ProfileTab() {
                 {/* Stats Section */}
                 <View style={styles.statsContainer}>
                     <View style={styles.statItem}>
-                        <Text style={styles.statValue}>💎 1,230</Text>
+                        <Text style={styles.statValue}>
+                            💎 {isLoadingGems ? '...' : gems.toLocaleString()}
+                        </Text>
                         <Text style={styles.statLabel}>Gems</Text>
                     </View>
                     <View style={styles.statItem}>
-                        <Text style={styles.statValue}>🔥 45</Text>
+                        <Text style={styles.statValue}>
+                            🔥 {isLoadingStreak ? '...' : currentStreak}
+                        </Text>
                         <Text style={styles.statLabel}>Day Streak</Text>
                     </View>
                     <View style={styles.statItem}>
                         <Text style={styles.statValue}>📚 {userLevel}</Text>
                         <Text style={styles.statLabel}>Level</Text>
                     </View>
+                </View>
+
+                {/* Additional Streak Stats */}
+                <View style={styles.streakStatsContainer}>
+                    <Text style={styles.sectionTitle}>Learning Statistics</Text>
+                    
+                    <View style={styles.streakStatRow}>
+                        <View style={styles.streakStatItem}>
+                            <MaterialIcons name="local-fire-department" size={24} color="#FF6B6B" />
+                            <View style={styles.streakStatText}>
+                                <Text style={styles.streakStatValue}>
+                                    {isLoadingStreak ? '...' : longestStreak}
+                                </Text>
+                                <Text style={styles.streakStatLabel}>Longest Streak</Text>
+                            </View>
+                        </View>
+                        
+                        <View style={styles.streakStatItem}>
+                            <MaterialIcons name="event" size={24} color="#4ECDC4" />
+                            <View style={styles.streakStatText}>
+                                <Text style={styles.streakStatValue}>
+                                    {isLoadingStreak ? '...' : totalLoginDays}
+                                </Text>
+                                <Text style={styles.streakStatLabel}>Total Days</Text>
+                            </View>
+                        </View>
+                    </View>
+                    
+                    {currentStreak > 0 && (
+                        <View style={styles.streakMessage}>
+                            <Text style={styles.streakMessageText}>
+                                {currentStreak === 1 
+                                    ? "Great start! Keep going tomorrow to build your streak! 🎯"
+                                    : currentStreak < 7
+                                    ? `${currentStreak} days in a row! You're building a great habit! 💪`
+                                    : currentStreak < 30
+                                    ? `Amazing ${currentStreak}-day streak! You're on fire! 🔥`
+                                    : `Incredible ${currentStreak}-day streak! You're a learning champion! 🏆`
+                                }
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Settings Sections */}
@@ -407,5 +465,50 @@ const styles = StyleSheet.create({
     },
     logoutText: {
         color: '#EF4444',
+    },
+    streakStatsContainer: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 20,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    streakStatRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+    streakStatItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    streakStatText: {
+        marginLeft: 8,
+    },
+    streakStatValue: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    streakStatLabel: {
+        fontSize: 14,
+        color: '#666',
+    },
+    streakMessage: {
+        backgroundColor: '#E8F0FF',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+    },
+    streakMessageText: {
+        fontSize: 16,
+        color: '#333',
     },
 });

@@ -69,7 +69,38 @@ const Home = () => {
   const [localFlashcards, setLocalFlashcards] = useState<any[]>([]);
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
-  const { userId, isLoggedIn } = useGlobalContext();
+  const { 
+    userId, 
+    isLoggedIn, 
+    currentStreak, 
+    longestStreak, 
+    totalLoginDays, 
+    isLoadingStreak,
+    onboardingData,
+    gems,
+    isLoadingGems
+  } = useGlobalContext();
+
+  // Map CEFR levels to display format for user level
+  const formatUserLevel = (level?: string) => {
+    if (!level) return 'A1';
+    
+    // Convert to uppercase for display
+    const upperLevel = level.toUpperCase();
+    
+    // If it's already in CEFR format (A1, B1, etc)
+    if (/^[A-C][1-2]$/.test(upperLevel)) {
+        return upperLevel;
+    }
+    
+    // Map legacy format
+    switch (level.toLowerCase()) {
+        case 'beginner': return 'A1';
+        case 'intermediate': return 'B1';
+        case 'advanced': return 'C1';
+        default: return 'A1';
+    }
+  };
 
   // Function to load flashcards
   const loadFlashcards = useCallback(async () => {
@@ -125,9 +156,19 @@ const Home = () => {
   // Function to prepare flashcards for the deck component
   const prepareFlashcardDeck = () => {
     // Prefer Firebase flashcards, fall back to local if empty
-    const cards = myFlashcards.length > 0 
-      ? myFlashcards.map(card => ({ question: card.english, answer: card.french }))
-      : localFlashcards.map(card => ({ question: card.english, answer: card.french }));
+    let cards: { question: string; answer: string }[] = [];
+    
+    if (myFlashcards.length > 0) {
+      cards = myFlashcards
+        .filter(card => card && card.english && card.french) // Filter out invalid cards
+        .map(card => ({ question: card.english, answer: card.french }));
+    } else if (localFlashcards.length > 0) {
+      cards = localFlashcards
+        .filter(card => card && card.english && card.french) // Filter out invalid cards
+        .map(card => ({ question: card.english, answer: card.french }));
+    }
+    
+    console.log("Prepared flashcard deck with", cards.length, "valid cards");
     
     // Create a deck for review
     const reviewDeck: FlashCardDeckData = {
@@ -154,8 +195,48 @@ const Home = () => {
       return;
     }
     
+    // Prepare and validate the deck
+    const deck = prepareFlashcardDeck();
+    if (!deck.cards || deck.cards.length === 0) {
+      Alert.alert(
+        "No Valid Flashcards", 
+        "No valid flashcards found. Please check your flashcard data."
+      );
+      return;
+    }
+    
     // Set the selected deck for review
-    setSelectedDeck(prepareFlashcardDeck());
+    setSelectedDeck(deck);
+  };
+
+  // Handle recommended deck selection with validation
+  const handleRecommendedDeckPress = (deck: FlashCardDeckData) => {
+    // Validate the deck before setting it
+    if (!deck || !deck.cards || deck.cards.length === 0) {
+      Alert.alert("Error", "Invalid flashcard deck selected.");
+      return;
+    }
+    
+    // Validate each card in the deck
+    const validCards = deck.cards.filter(card => 
+      card && card.question && card.answer && 
+      typeof card.question === 'string' && typeof card.answer === 'string'
+    );
+    
+    if (validCards.length === 0) {
+      Alert.alert("Error", "No valid cards found in this deck.");
+      return;
+    }
+    
+    // Create a new deck with only valid cards
+    const validatedDeck: FlashCardDeckData = {
+      ...deck,
+      cards: validCards,
+      words: validCards.length
+    };
+    
+    console.log("Setting recommended deck:", validatedDeck.title, "with", validCards.length, "cards");
+    setSelectedDeck(validatedDeck);
   };
 
   return (
@@ -182,15 +263,21 @@ const Home = () => {
             {/* Stats Bar */}
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>💎 1,230</Text>
+                <Text style={styles.statValue}>
+                  💎 {isLoadingGems ? '...' : gems.toLocaleString()}
+                </Text>
                 <Text style={styles.statLabel}>Gems</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>🔥 45</Text>
+                <Text style={styles.statValue}>
+                  🔥 {isLoadingStreak ? '...' : currentStreak}
+                </Text>
                 <Text style={styles.statLabel}>Day Streak</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>📚 A1</Text>
+                <Text style={styles.statValue}>
+                  📚 {formatUserLevel(onboardingData.proficiencyLevel)}
+                </Text>
                 <Text style={styles.statLabel}>Level</Text>
               </View>
             </View>
@@ -261,7 +348,7 @@ const Home = () => {
                 <TouchableOpacity 
                   key={deck.id} 
                   style={styles.deckCard}
-                  onPress={() => setSelectedDeck(deck)}
+                  onPress={() => handleRecommendedDeckPress(deck)}
                 >
                   <View style={styles.deckIconContainer}>
                     <Text style={styles.deckIcon}>
